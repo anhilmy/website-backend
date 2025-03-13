@@ -2,16 +2,19 @@ package internal
 
 import (
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	DbHost     string `yaml:"DB_HOST"`
-	DbPort     int64  `yaml:"DB_PORT"`
-	DbUser     string `yaml:"DB_USER"`
-	DbName     string `yaml:"DB_NAME"`
-	DbPassword string `yaml:"DB_PASSWORD"`
+	DbHost           string `yaml:"DB_HOST"`
+	DbPort           int64  `yaml:"DB_PORT"`
+	DbUser           string `yaml:"DB_USER"`
+	DbName           string `yaml:"DB_NAME"`
+	DbPassword       string `yaml:"DB_PASSWORD"`
+	IntervalDuration int    `yaml:"INTERVAL_DURATION"`
+	Duration         time.Duration
 }
 
 func (conf *Config) LoadConfig(path string) error {

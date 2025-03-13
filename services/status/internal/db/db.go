@@ -4,9 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/anhilmy/website-backend/services/status/internal"
 	_ "github.com/lib/pq"
-
-	"github.com/anhilmy/website-backend/internal"
 )
 
 var DB *sql.DB
