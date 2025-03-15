@@ -1,0 +1,10 @@
+intervals:
+  cpu_temperature: 30s
+  memory_usage: 10s
+  cpu_usage: 5s
+  disk_usage: 60s
+  network_io: 15s
+  process_stats: 30s
+
+# Optional: Override hostname if needed
+# hostname: custom-hostname 
