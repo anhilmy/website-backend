@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/anhilmy/website-backend/internal/db"
+	"github.com/anhilmy/website-backend/internal/shared/db"
 	"github.com/anhilmy/website-backend/services/status/internal/status"
 	"github.com/gin-gonic/gin"
 	"github.com/shirou/gopsutil/v4/cpu"

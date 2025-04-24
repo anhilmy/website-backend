@@ -8,6 +8,32 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Config struct {
+	DbHost     string
+	DbName     string
+	DbPassword string
+	DbUsername string
+	DbPort     string
+
+	RedisHost     string
+	RedisPort     string
+	RedisPassword string
+}
+
+func LoadConfig(path string) (cfg *Config, err error) {
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading config file: %w", err)
+	}
+
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("error parsing config file: %w", err)
+	}
+
+	return
+}
+
 type MonitoringConfig struct {
 	Intervals struct {
 		CPUTemperature time.Duration `yaml:"cpu_temperature"`
@@ -18,9 +44,10 @@ type MonitoringConfig struct {
 		ProcessStats   time.Duration `yaml:"process_stats"`
 	} `yaml:"intervals"`
 	Hostname string `yaml:"hostname"`
+	Config   *Config
 }
 
-func LoadConfig(path string) (*MonitoringConfig, error) {
+func LoadMonitoringConfig(path string) (*MonitoringConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading config file: %w", err)
@@ -40,5 +67,10 @@ func LoadConfig(path string) (*MonitoringConfig, error) {
 		config.Hostname = hostname
 	}
 
+	config.Config, err = LoadConfig(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading config file: %w", err)
+	}
+
 	return &config, nil
-} 
+}

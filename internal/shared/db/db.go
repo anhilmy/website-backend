@@ -2,32 +2,32 @@ package db
 
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
-	"log"
 	"os"
 	"path/filepath"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
-var DB *sql.DB
+var db *sql.DB
 
-func InitDB() error {
+func InitDB() (*sql.DB, error) {
 	// Ensure internal/db directory exists
 	dbDir := "internal/shared/db"
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
-		return err
-	}	
+		return nil, err
+	}
 
 	// Open SQLite database
 	dbPath := filepath.Join(dbDir, "status.db")
 	var err error
-	DB, err = sql.Open("sqlite3", dbPath)
+	db, err = sql.Open("sqlite3", dbPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return db, nil
 }

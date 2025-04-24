@@ -7,23 +7,24 @@ import (
 	"os/signal"
 	"syscall"
 
-	"website-backend/internal/shared/config"
-	"website-backend/internal/shared/db"
-	"website-backend/services/status/monitoring"
+	"github.com/anhilmy/website-backend/internal/shared/config"
+	"github.com/anhilmy/website-backend/internal/shared/db"
+	"github.com/anhilmy/website-backend/services/status/monitoring"
 )
 
 func main() {
 	// Load configuration
-	cfg, err := config.LoadConfig("config.yaml")
+	cfg, err := config.LoadMonitoringConfig("config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
 	// Initialize database connection
-	db, err := db.NewDB("postgres://user:password@localhost:5432/monitoring?sslmode=disable")
+	err = db.InitDB()
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Fatalf("Failed to initialize database: %v", err)
 	}
+	db := db.DB
 	defer db.Close()
 
 	// Create monitoring service
@@ -48,4 +49,4 @@ func main() {
 	cancel()
 	monitor.Stop()
 	log.Println("Monitoring service stopped")
-} 
+}

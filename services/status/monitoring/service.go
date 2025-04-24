@@ -2,7 +2,6 @@ package monitoring
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -274,4 +273,4 @@ func (s *MonitoringService) monitorProcessStats(ctx context.Context) {
 			}
 		}
 	}
-} 
+}
