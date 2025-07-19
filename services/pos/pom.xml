@@ -4,6 +4,12 @@
   <artifactId>spark-app</artifactId>
   <version>1.0-SNAPSHOT</version>
 
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>17</maven.compiler.source>  <!-- Or 11/21 depending on your JDK -->
+    <maven.compiler.target>17</maven.compiler.target>
+  </properties>
+
   <dependencies>
     <!-- Spark Java -->
     <dependency>
