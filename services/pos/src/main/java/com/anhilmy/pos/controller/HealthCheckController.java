@@ -12,7 +12,5 @@ public class HealthCheckController {
             res.type("application/json");
             return gson.toJson("OK");
         });
-
-        
     }
 }
