@@ -10,6 +10,12 @@ import (
 
 var db *sql.DB
 
+type DB interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	Query(query string, args ...any) (*sql.Rows, error)
+	QueryRow(query string, args ...any) *sql.Row
+}
+
 func InitDB() (*sql.DB, error) {
 	// Ensure internal/db directory exists
 	dbDir := "internal/shared/db"

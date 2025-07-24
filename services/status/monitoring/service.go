@@ -13,17 +13,17 @@ import (
 	"github.com/shirou/gopsutil/v3/net"
 	"github.com/shirou/gopsutil/v3/process"
 
-	"website-backend/internal/shared/config"
-	"website-backend/internal/shared/db"
+	"github.com/anhilmy/website-backend/internal/shared/config"
+	"github.com/anhilmy/website-backend/internal/shared/db"
 )
 
 type MonitoringService struct {
 	config *config.MonitoringConfig
-	db     *db.DB
+	db     db.DB
 	wg     sync.WaitGroup
 }
 
-func NewMonitoringService(cfg *config.MonitoringConfig, db *db.DB) *MonitoringService {
+func NewMonitoringService(cfg *config.MonitoringConfig, db db.DB) *MonitoringService {
 	return &MonitoringService{
 		config: cfg,
 		db:     db,
@@ -99,7 +99,7 @@ func (s *MonitoringService) monitorMemoryUsage(ctx context.Context) {
 					memory_usage_percent, swap_total_bytes, swap_used_bytes,
 					swap_free_bytes, hostname
 				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			`, v.Total, v.Used, v.Free, v.UsedPercent, v.SwapTotal, v.SwapUsed, v.SwapFree, s.config.Hostname)
+			`, v.Total, v.Used, v.Free, v.UsedPercent, v.SwapTotal, v.SwapCached, v.SwapFree, s.config.Hostname)
 			if err != nil {
 				log.Printf("Error inserting memory usage: %v", err)
 			}
@@ -117,20 +117,20 @@ func (s *MonitoringService) monitorCPUUsage(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			percentages, err := cpu.Percent(time.Second, true)
+			times, err := cpu.Times(true)
 			if err != nil {
 				log.Printf("Error getting CPU usage: %v", err)
 				continue
 			}
 
-			for i, p := range percentages {
+			for i, t := range times {
 				_, err = s.db.Exec(`
 					INSERT INTO cpu_usage (
 						cpu_index, user_percent, system_percent, idle_percent,
 						nice_percent, iowait_percent, irq_percent, softirq_percent,
 						steal_percent, guest_percent, hostname
 					) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-				`, i, p.User, p.System, p.Idle, p.Nice, p.Iowait, p.Irq, p.Softirq, p.Steal, p.Guest, s.config.Hostname)
+				`, i, t.User, t.System, t.Idle, t.Nice, t.Iowait, t.Irq, t.Softirq, t.Steal, t.Guest, s.config.Hostname)
 				if err != nil {
 					log.Printf("Error inserting CPU usage: %v", err)
 				}
