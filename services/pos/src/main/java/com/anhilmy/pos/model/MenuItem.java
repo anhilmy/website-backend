@@ -8,10 +8,12 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "menu_item")
+@Table(name = "menu_items")
 public class MenuItem {
 
     @Id
@@ -26,19 +28,24 @@ public class MenuItem {
     @Column(nullable = false)
     private BigDecimal price;
 
-    private int categoryId;
+    @ManyToOne
+    @JoinColumn(name = "category_id", nullable = false)
+    private MenuCategory menuCategory;
 
     private boolean isAvailable;
 
     @Column(nullable = false, updatable = false)
     private Timestamp createdAt;
 
-    public MenuItem(String name, String description, BigDecimal price, int categoryId,
+    public MenuItem() {
+    }
+
+    public MenuItem(String name, String description, BigDecimal price, MenuCategory menuCategory,
             boolean isAvailable) {
         this.name = name;
         this.description = description;
         this.price = price;
-        this.categoryId = categoryId;
+        this.menuCategory = menuCategory;
         this.isAvailable = isAvailable;
     }
 
@@ -75,12 +82,12 @@ public class MenuItem {
         this.price = price;
     }
 
-    public int getCategoryId() {
-        return categoryId;
+    public MenuCategory getMenuCategory() {
+        return menuCategory;
     }
 
-    public void setCategoryId(int categoryId) {
-        this.categoryId = categoryId;
+    public void setMenuCategory(MenuCategory menuCategory) {
+        this.menuCategory = menuCategory;
     }
 
     public boolean isAvailable() {
