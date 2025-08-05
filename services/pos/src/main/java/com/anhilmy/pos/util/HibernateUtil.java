@@ -1,5 +1,6 @@
 package com.anhilmy.pos.util;
 
+import org.hibernate.HibernateException;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
@@ -29,7 +30,7 @@ public class HibernateUtil {
             configuration.setProperty("hibernate.connection.username", dotenv.get("DB_USERNAME"));
             configuration.setProperty("hibernate.connection.password", dotenv.get("DB_PASSWORD"));
             configuration.setProperty("hibernate.dialect", dotenv.get("DB_DIALECT"));
-            configuration.setProperty("hibernate.hbm2ddl.auto", "update");
+            configuration.setProperty("hibernate.hbm2ddl.auto", "validate");
             configuration.setProperty("show_sql",
                     "true".equals(dotenv.get("DEVELOPMENT")) ? "true" : "false");
 
@@ -45,7 +46,7 @@ public class HibernateUtil {
 
             sessionFactory = configuration.buildSessionFactory(serviceRegistry);
 
-        } catch (Throwable ex) {
+        } catch (HibernateException ex) {
             throw new ExceptionInInitializerError("Initial SessionFactory creation failed: " + ex);
         }
     }

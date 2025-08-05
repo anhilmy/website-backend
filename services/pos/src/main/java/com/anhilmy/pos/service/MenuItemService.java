@@ -13,9 +13,10 @@ public class MenuItemService {
     private final MenuRepository menuRepository;
     private final MenuCategoryRepository menuCategoryRepository;
 
-    public MenuItemService() {
-        this.menuRepository = new MenuRepository();
-        this.menuCategoryRepository = new MenuCategoryRepository();
+    public MenuItemService(MenuRepository menuRepository,
+            MenuCategoryRepository menuCategoryRepository) {
+        this.menuRepository = menuRepository;
+        this.menuCategoryRepository = menuCategoryRepository;
     }
 
     public List<MenuItem> getAllMenuItems() {
@@ -23,26 +24,28 @@ public class MenuItemService {
     }
 
     public MenuItem getMenuItemById(Long id) {
-        return menuRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("MenuItem with id " + id + " not found."));
+        return menuRepository.findById(id).orElseThrow(
+                () -> new IllegalArgumentException("MenuItem with id " + id + " not found."));
     }
 
-    public MenuItem createMenuItem(String name, String description, BigDecimal price, int categoryId,
-            boolean isAvailable) {
+    public MenuItem createMenuItem(String name, String description, BigDecimal price,
+            int categoryId, boolean isAvailable) {
         MenuCategory menuCategory = menuCategoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("MenuCategory with id " + categoryId + " not found."));
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "MenuCategory with id " + categoryId + " not found."));
 
         MenuItem menuItem = new MenuItem(name, description, price, menuCategory, isAvailable);
         menuRepository.save(menuItem);
         return menuItem;
     }
 
-    public MenuItem updateMenuItem(Long id, String name, String description, BigDecimal price, int categoryId,
-            boolean isAvailable) {
+    public MenuItem updateMenuItem(Long id, String name, String description, BigDecimal price,
+            int categoryId, boolean isAvailable) {
         MenuItem existingMenuItem = getMenuItemById(id);
 
         MenuCategory menuCategory = menuCategoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("MenuCategory with id " + categoryId + " not found."));
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "MenuCategory with id " + categoryId + " not found."));
 
         existingMenuItem.setName(name);
         existingMenuItem.setDescription(description);

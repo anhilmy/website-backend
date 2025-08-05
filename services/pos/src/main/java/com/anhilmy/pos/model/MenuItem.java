@@ -18,7 +18,7 @@ public class MenuItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long itemId;
+    private Long id;
 
     @Column(nullable = false)
     private String name;
@@ -37,8 +37,7 @@ public class MenuItem {
     @Column(nullable = false, updatable = false)
     private Timestamp createdAt;
 
-    public MenuItem() {
-    }
+    public MenuItem() {}
 
     public MenuItem(String name, String description, BigDecimal price, MenuCategory menuCategory,
             boolean isAvailable) {
@@ -50,12 +49,12 @@ public class MenuItem {
     }
 
     // Getters and Setters
-    public Long getItemId() {
-        return itemId;
+    public Long getId() {
+        return id;
     }
 
-    public void setItemId(Long itemId) {
-        this.itemId = itemId;
+    public void setId(Long itemId) {
+        this.id = itemId;
     }
 
     public String getName() {
@@ -105,4 +104,10 @@ public class MenuItem {
     public void setCreatedAt(Timestamp createdAt) {
         this.createdAt = createdAt;
     }
+
+    @Override
+    public String toString() {
+        return "MenuItem{" + "id=" + id + ", name='" + name + '\'' + ", price=" + price + '}';
+    }
+
 }
