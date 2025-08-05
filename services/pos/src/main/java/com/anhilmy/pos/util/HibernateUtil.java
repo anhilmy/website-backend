@@ -15,6 +15,7 @@ import com.anhilmy.pos.model.Transaction;
 import com.anhilmy.pos.model.TransactionItem;
 import com.anhilmy.pos.model.User;
 
+@SuppressWarnings("ConvertToStringSwitch")
 public class HibernateUtil {
     private static final SessionFactory sessionFactory;
 

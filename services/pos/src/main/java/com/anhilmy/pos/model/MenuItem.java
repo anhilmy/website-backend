@@ -1,7 +1,7 @@
 package com.anhilmy.pos.model;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,50 +11,52 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Entity
 @Table(name = "menu_items")
 public class MenuItem {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank
     @Column(nullable = false)
     private String name;
 
     private String description;
 
+    @NotNull
     @Column(nullable = false)
+    @jakarta.validation.constraints.Positive
     private BigDecimal price;
 
-    @ManyToOne
+    @ManyToOne(optional = false)
     @JoinColumn(name = "category_id", nullable = false)
     private MenuCategory menuCategory;
 
-    private boolean isAvailable;
+    @NotNull
+    @Column(nullable = false)
+    private Boolean available = true;
 
-    @Column(nullable = false, updatable = false)
-    private Timestamp createdAt;
+    private String imageUrl;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
 
     public MenuItem() {}
 
-    public MenuItem(String name, String description, BigDecimal price, MenuCategory menuCategory,
-            boolean isAvailable) {
-        this.name = name;
-        this.description = description;
-        this.price = price;
-        this.menuCategory = menuCategory;
-        this.isAvailable = isAvailable;
-    }
-
-    // Getters and Setters
+    // Getters and setters
     public Long getId() {
         return id;
     }
 
-    public void setId(Long itemId) {
-        this.id = itemId;
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public String getName() {
@@ -89,25 +91,35 @@ public class MenuItem {
         this.menuCategory = menuCategory;
     }
 
-    public boolean isAvailable() {
-        return isAvailable;
+    public Boolean getAvailable() {
+        return available;
     }
 
-    public void setAvailable(boolean available) {
-        isAvailable = available;
+    public void setAvailable(Boolean available) {
+        this.available = available;
     }
 
-    public Timestamp getCreatedAt() {
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Timestamp createdAt) {
+    public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
-    @Override
-    public String toString() {
-        return "MenuItem{" + "id=" + id + ", name='" + name + '\'' + ", price=" + price + '}';
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
 }
