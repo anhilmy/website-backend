@@ -7,7 +7,8 @@ MIGRATE_CMD = migrate -path $(MIGRATIONS_DIR) -database "$(DB_URL)"
 COMPOSE_FILE = docker-compose.db.yml
 
 # Get timestamp in migrate format (UTC to match naming)
-TIMESTAMP := $(shell date -u +"%Y%m%d%H%M%S")
+# TIMESTAMP := $(shell date -u +"%Y%m%d%H%M%S")
+TIMESTAMP := $(shell powershell -Command "Get-Date -Format 'yyyyMMddHHmmss' -AsUTC")
 
 # Create migration and rename files with module prefix
 db.create:
