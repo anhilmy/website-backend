@@ -18,7 +18,7 @@ public class MenuItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Column(nullable = false)
     private String name;
@@ -32,12 +32,14 @@ public class MenuItem {
     @JoinColumn(name = "category_id", nullable = false)
     private MenuCategory menuCategory;
 
+    @Column(name = "is_available", nullable = false)
     private boolean isAvailable;
 
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Timestamp createdAt;
 
-    public MenuItem() {}
+    public MenuItem() {
+    }
 
     public MenuItem(String name, String description, BigDecimal price, MenuCategory menuCategory,
             boolean isAvailable) {
@@ -49,11 +51,11 @@ public class MenuItem {
     }
 
     // Getters and Setters
-    public Long getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(Long itemId) {
+    public void setId(Integer itemId) {
         this.id = itemId;
     }
 
