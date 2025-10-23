@@ -191,7 +191,7 @@ docker-run:
 .PHONY: docker-up
 docker-up:
 	@echo "Starting all services with Docker Compose..."
-	docker-compose up -d
+	docker-compose --env-file .env.docker up -d
 
 .PHONY: docker-down
 docker-down:
@@ -249,7 +249,7 @@ docker-status:
 .PHONY: docker-dev
 docker-dev:
 	@echo "Starting development environment..."
-	docker-compose -f docker-compose.yml up --build
+	docker-compose --env-file .env.docker -f docker-compose.yml up --build
 
 # Show running processes on the application port
 .PHONY: ps
