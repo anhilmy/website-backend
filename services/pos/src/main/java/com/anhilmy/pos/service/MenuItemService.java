@@ -1,6 +1,7 @@
 package com.anhilmy.pos.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import com.anhilmy.pos.model.MenuCategory;
@@ -34,7 +35,16 @@ public class MenuItemService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "MenuCategory with id " + categoryId + " not found."));
 
-        MenuItem menuItem = new MenuItem(name, description, price, menuCategory, isAvailable);
+        MenuItem menuItem = new MenuItem();
+        menuItem.setName(name);
+        menuItem.setDescription(description);
+        menuItem.setPrice(price);
+        menuItem.setMenuCategory(menuCategory);
+        menuItem.setAvailable(isAvailable);
+
+        // Set created and updated timestamps
+        menuItem.setCreatedAt(LocalDateTime.now());
+        menuItem.setUpdatedAt(LocalDateTime.now());
         menuRepository.save(menuItem);
         return menuItem;
     }

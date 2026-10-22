@@ -1,36 +1,148 @@
 package com.anhilmy.pos.model;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
+@Entity
+@Table(name = "transactions")
 public class Transaction {
-    private int transactionId;
-    private int userId;
+    public enum Status {
+        DRAFT, IN_PROGRESS, COMPLETED, CANCELLED
+    }
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotNull
+    @Positive
+    @Column(nullable = false)
     private BigDecimal totalAmount;
+
+    @NotNull
+    @Positive
+    @Column(nullable = false)
+    private BigDecimal taxAmount;
+
+    @NotNull
+    @Column(nullable = false)
     private String paymentMethod;
-    private BigDecimal paidAmount;
-    private BigDecimal changeDue;
-    private Timestamp transactionTime;
 
-    // Getters and Setters
-    public int getTransactionId() { return transactionId; }
-    public void setTransactionId(int transactionId) { this.transactionId = transactionId; }
+    @NotNull
+    @Positive
+    @Column(nullable = false)
+    private BigDecimal paymentAmount;
 
-    public int getUserId() { return userId; }
-    public void setUserId(int userId) { this.userId = userId; }
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Status status = Status.DRAFT;
 
-    public BigDecimal getTotalAmount() { return totalAmount; }
-    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    private String customerInfo;
 
-    public String getPaymentMethod() { return paymentMethod; }
-    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "cashier_id", nullable = false)
+    private User cashier;
 
-    public BigDecimal getPaidAmount() { return paidAmount; }
-    public void setPaidAmount(BigDecimal paidAmount) { this.paidAmount = paidAmount; }
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 
-    public BigDecimal getChangeDue() { return changeDue; }
-    public void setChangeDue(BigDecimal changeDue) { this.changeDue = changeDue; }
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
 
-    public Timestamp getTransactionTime() { return transactionTime; }
-    public void setTransactionTime(Timestamp transactionTime) { this.transactionTime = transactionTime; }
+    public Transaction() {}
+
+    // Getters and setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
+    }
+
+    public BigDecimal getTaxAmount() {
+        return taxAmount;
+    }
+
+    public void setTaxAmount(BigDecimal taxAmount) {
+        this.taxAmount = taxAmount;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public BigDecimal getPaymentAmount() {
+        return paymentAmount;
+    }
+
+    public void setPaymentAmount(BigDecimal paymentAmount) {
+        this.paymentAmount = paymentAmount;
+    }
+
+    public Status getStatus() {
+        return status;
+    }
+
+    public void setStatus(Status status) {
+        this.status = status;
+    }
+
+    public String getCustomerInfo() {
+        return customerInfo;
+    }
+
+    public void setCustomerInfo(String customerInfo) {
+        this.customerInfo = customerInfo;
+    }
+
+    public User getCashier() {
+        return cashier;
+    }
+
+    public void setCashier(User cashier) {
+        this.cashier = cashier;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
 }

@@ -1,6 +1,6 @@
 package com.anhilmy.pos.repository;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,7 +26,7 @@ public class MenuRepositoryImpl implements MenuRepository {
 
     @Override
     public void save(MenuItem menuItem) {
-        menuItem.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+        menuItem.setCreatedAt(LocalDateTime.now());
         Session session = DbManager.getSession();
         session.persist(menuItem);
     }

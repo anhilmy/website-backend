@@ -1,38 +1,43 @@
 package com.anhilmy.pos.util;
 
-import org.hibernate.HibernateException;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.service.ServiceRegistry;
 
+import com.anhilmy.pos.config.ConfigManager;
+import com.anhilmy.pos.config.DatabaseConfig;
+import com.anhilmy.pos.config.PostgresConfig;
+import com.anhilmy.pos.config.SQLiteConfig;
 import com.anhilmy.pos.model.MenuCategory;
 import com.anhilmy.pos.model.MenuItem;
 import com.anhilmy.pos.model.Transaction;
 import com.anhilmy.pos.model.TransactionItem;
 import com.anhilmy.pos.model.User;
 
-import io.github.cdimascio.dotenv.Dotenv;
-
+@SuppressWarnings("ConvertToStringSwitch")
 public class HibernateUtil {
     private static final SessionFactory sessionFactory;
 
+
     static {
         try {
-            // Load .env file
-            Dotenv dotenv = Dotenv.load();
+            String dbType = ConfigManager.get("db.type");
+            DatabaseConfig dbConfig;
+            if (dbType == null) {
+                throw new RuntimeException("db.type is not set in configuration");
+            }
+            dbType = dbType.toLowerCase();
+            if (dbType.equals("sqlite")) {
+                dbConfig = new SQLiteConfig();
+            } else if (dbType.equals("postgresql") || dbType.equals("postgres")) {
+                dbConfig = new PostgresConfig();
+            } else {
+                throw new RuntimeException("Unsupported db.type: " + dbType);
+            }
 
             Configuration configuration = new Configuration();
-
-            // Set properties from .env
-            configuration.setProperty("hibernate.connection.driver_class", dotenv.get("DB_DRIVER"));
-            configuration.setProperty("hibernate.connection.url", dotenv.get("DB_URL"));
-            configuration.setProperty("hibernate.connection.username", dotenv.get("DB_USERNAME"));
-            configuration.setProperty("hibernate.connection.password", dotenv.get("DB_PASSWORD"));
-            configuration.setProperty("hibernate.dialect", dotenv.get("DB_DIALECT"));
-            configuration.setProperty("hibernate.hbm2ddl.auto", "validate");
-            configuration.setProperty("show_sql",
-                    "true".equals(dotenv.get("DEVELOPMENT")) ? "true" : "false");
+            configuration.setProperties(dbConfig.getHibernateProperties());
 
             // Add annotated classes
             configuration.addAnnotatedClass(MenuItem.class);
@@ -46,7 +51,9 @@ public class HibernateUtil {
 
             sessionFactory = configuration.buildSessionFactory(serviceRegistry);
 
-        } catch (HibernateException ex) {
+        } catch (RuntimeException ex) {
+            System.err.println(
+                    "[HibernateUtil] Error initializing SessionFactory: " + ex.getMessage());
             throw new ExceptionInInitializerError("Initial SessionFactory creation failed: " + ex);
         }
     }
@@ -54,4 +61,5 @@ public class HibernateUtil {
     public static SessionFactory getSessionFactory() {
         return sessionFactory;
     }
+    // ...existing code...
 }
