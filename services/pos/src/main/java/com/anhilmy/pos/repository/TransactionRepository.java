@@ -1,38 +1,60 @@
 package com.anhilmy.pos.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
-import org.hibernate.Session;
+import org.hibernate.query.Query;
 
-import com.anhilmy.pos.db.DbManager;
 import com.anhilmy.pos.model.Transaction;
 
-public class TransactionRepository {
+/** Persistence operations for {@link Transaction} with status/date/cashier filtering. */
+public class TransactionRepository extends BaseRepository<Transaction, Long> {
 
-    public Optional<Transaction> findById(int id) {
-        Session session = DbManager.getSession();
-        return Optional.ofNullable(session.get(Transaction.class, id));
+    public TransactionRepository() {
+        super(Transaction.class);
     }
 
-    public List<Transaction> findAll() {
-        Session session = DbManager.getSession();
-        return session.createQuery("from Transaction", Transaction.class).list();
+    public List<Transaction> findByStatus(Transaction.Status status) {
+        return session()
+                .createQuery("from Transaction where status = :status order by createdAt desc",
+                        Transaction.class)
+                .setParameter("status", status)
+                .list();
     }
 
-    public void save(Transaction transaction) {
-
-        Session session = DbManager.getSession();
-        session.persist(transaction);
+    public List<Transaction> findByCashier(Long cashierId) {
+        return session()
+                .createQuery("from Transaction where cashier.id = :cid order by createdAt desc",
+                        Transaction.class)
+                .setParameter("cid", cashierId)
+                .list();
     }
 
-    public void update(Transaction transaction) {
-        Session session = DbManager.getSession();
-        session.merge(transaction);
-    }
+    /** Returns transactions with the given statuses, optionally restricted to a date range. */
+    public List<Transaction> findFiltered(Transaction.Status status, LocalDateTime from,
+            LocalDateTime to) {
+        StringBuilder hql = new StringBuilder("from Transaction where 1=1");
+        if (status != null) {
+            hql.append(" and status = :status");
+        }
+        if (from != null) {
+            hql.append(" and createdAt >= :from");
+        }
+        if (to != null) {
+            hql.append(" and createdAt <= :to");
+        }
+        hql.append(" order by createdAt desc");
 
-    public void delete(Transaction transaction) {
-        Session session = DbManager.getSession();
-        session.remove(transaction);
+        Query<Transaction> query = session().createQuery(hql.toString(), Transaction.class);
+        if (status != null) {
+            query.setParameter("status", status);
+        }
+        if (from != null) {
+            query.setParameter("from", from);
+        }
+        if (to != null) {
+            query.setParameter("to", to);
+        }
+        return query.list();
     }
 }

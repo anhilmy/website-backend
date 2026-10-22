@@ -1,4 +1,6 @@
 -- SQLite schema for POS system
+-- Applied by: sqlite3 pos_dev.db < schema_sqlite.sql
+
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
@@ -13,8 +15,10 @@ CREATE TABLE IF NOT EXISTS menu_categories (
     name TEXT NOT NULL UNIQUE,
     description TEXT,
     active INTEGER NOT NULL DEFAULT 1,
+    parent_id INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_id) REFERENCES menu_categories(id)
 );
 
 CREATE TABLE IF NOT EXISTS menu_items (
@@ -22,7 +26,7 @@ CREATE TABLE IF NOT EXISTS menu_items (
     name TEXT NOT NULL,
     description TEXT,
     price REAL NOT NULL,
-    category_id INTEGER,
+    category_id INTEGER NOT NULL,
     available INTEGER NOT NULL DEFAULT 1,
     image_url TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -32,13 +36,13 @@ CREATE TABLE IF NOT EXISTS menu_items (
 
 CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    total_amount REAL NOT NULL,
-    tax_amount REAL NOT NULL,
-    payment_method TEXT NOT NULL,
-    payment_amount REAL NOT NULL,
-    status TEXT NOT NULL,
+    total_amount REAL NOT NULL DEFAULT 0,
+    tax_amount REAL NOT NULL DEFAULT 0,
+    payment_method TEXT,
+    payment_amount REAL,
+    status TEXT NOT NULL DEFAULT 'DRAFT',
     customer_info TEXT,
-    cashier_id INTEGER,
+    cashier_id INTEGER NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (cashier_id) REFERENCES users(id)
@@ -51,6 +55,16 @@ CREATE TABLE IF NOT EXISTS transaction_items (
     quantity INTEGER NOT NULL,
     unit_price REAL NOT NULL,
     total_price REAL NOT NULL,
-    FOREIGN KEY (transaction_id) REFERENCES transactions(id),
+    FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
     FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
 );
+
+-- Indexes for common lookups
+CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
+CREATE INDEX IF NOT EXISTS idx_menu_categories_active ON menu_categories (active);
+CREATE INDEX IF NOT EXISTS idx_menu_items_category ON menu_items (category_id);
+CREATE INDEX IF NOT EXISTS idx_menu_items_available ON menu_items (available);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions (status);
+CREATE INDEX IF NOT EXISTS idx_transactions_cashier ON transactions (cashier_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions (created_at);
+CREATE INDEX IF NOT EXISTS idx_transaction_items_transaction ON transaction_items (transaction_id);

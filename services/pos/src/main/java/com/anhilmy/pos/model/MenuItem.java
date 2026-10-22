@@ -19,7 +19,7 @@ import jakarta.validation.constraints.NotNull;
 public class MenuItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id;
 
     @NotBlank
     @Column(nullable = false)
@@ -40,6 +40,7 @@ public class MenuItem {
     @Column(nullable = false)
     private Boolean available = true;
 
+    @Column(name = "image_url")
     private String imageUrl;
 
     @Column(name = "created_at", nullable = false, updatable = false)

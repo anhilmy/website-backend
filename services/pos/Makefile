@@ -5,7 +5,7 @@
 PROJECT_NAME := pos-system
 MAIN_CLASS := com.anhilmy.pos.App
 MAVEN_OPTS := -Dmaven.compiler.source=21 -Dmaven.compiler.target=21
-JAR_NAME := spark-app-1.0-SNAPSHOT.jar
+JAR_NAME := pos-app.jar
 TARGET_DIR := target
 
 # Default target
@@ -45,23 +45,21 @@ package:
 	@echo "Packaging project..."
 	mvn package -DskipTests
 
-# Run the application
+# Run the application (builds the fat JAR first)
 .PHONY: run
-run: compile
+run: package
 	@echo "Starting POS System..."
-	mvn exec:java -Dexec.mainClass="$(MAIN_CLASS)" -Dexec.cleanupDaemonThreads=false
+	java -jar $(TARGET_DIR)/$(JAR_NAME)
 
 # Run with Maven exec plugin (alternative)
 .PHONY: run-jar
-run-jar: package
-	@echo "Running from JAR..."
-	java -cp "$(TARGET_DIR)/$(JAR_NAME);$(TARGET_DIR)/lib/*" $(MAIN_CLASS)
+run-jar: run
 
 # Run in development mode
 .PHONY: dev
-dev:
-	@echo "Starting in development mode..."
-	mvn compile exec:java -Dexec.mainClass="$(MAIN_CLASS)" -Dexec.args="dev"
+dev: package
+	@echo "Starting in development mode (PROFILE=dev)..."
+	PROFILE=dev java -jar $(TARGET_DIR)/$(JAR_NAME)
 
 # Run tests
 .PHONY: test
@@ -170,11 +168,13 @@ watch:
 	@echo "Consider using 'mvn spring-boot:run' if using Spring Boot"
 	mvn compile exec:java -Dexec.mainClass="$(MAIN_CLASS)"
 
-# Database operations (if applicable)
+# Database operations
 .PHONY: db-migrate
 db-migrate:
-	@echo "Running database migrations..."
-	@echo "Implement database migration commands here"
+	@echo "Applying schema (SQLite)..."
+	sqlite3 pos_dev.db < src/main/resources/db/schema_sqlite.sql
+	sqlite3 pos_dev.db < src/main/resources/db/migrations/V1__baseline.sql
+	sqlite3 pos_dev.db < src/main/resources/db/migrations/V2__menu_category_parent_and_indexes.sql
 
 # Docker operations
 .PHONY: docker-build

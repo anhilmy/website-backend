@@ -1,0 +1,385 @@
+openapi: 3.0.3
+info:
+  title: POS System API
+  version: 1.0.0
+  description: >
+    Point of Sale backend. All responses use the envelope
+    `{ success, data, message, error, timestamp }`. Authenticate with
+    `POST /api/v1/auth/login` and send the returned token as `Authorization: Bearer <token>`.
+servers:
+  - url: http://localhost:4567
+tags:
+  - name: Health
+  - name: Auth
+  - name: Public Menu
+  - name: Categories
+  - name: Items
+  - name: Orders
+  - name: Users
+
+paths:
+  /api/v1/healthcheck:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      responses:
+        '200': { description: OK }
+  /api/v1/healthcheck/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe (checks database connectivity)
+      responses:
+        '200': { description: Ready }
+        '503': { description: Dependency down }
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate and obtain a JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponseEnvelope'
+        '401': { description: Invalid credentials }
+        '429': { description: Too many attempts }
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current token
+      responses:
+        '200': { description: Logged out }
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Current authenticated user
+      responses:
+        '200': { description: The current user }
+        '401': { description: Unauthenticated }
+  /api/v1/menu/categories:
+    get:
+      tags: [Public Menu]
+      summary: List active categories (public)
+      security: []
+      responses:
+        '200': { description: Active categories }
+  /api/v1/menu/items:
+    get:
+      tags: [Public Menu]
+      summary: List available items (public)
+      security: []
+      responses:
+        '200': { description: Available items }
+  /api/v1/menu/items/{id}:
+    get:
+      tags: [Public Menu]
+      summary: Get a menu item (public)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: Menu item }
+        '404': { description: Not found }
+  /api/v1/categories:
+    get:
+      tags: [Categories]
+      summary: List categories
+      responses:
+        '200': { description: Categories }
+    post:
+      tags: [Categories]
+      summary: Create a category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+      responses:
+        '201': { description: Created }
+        '400': { description: Validation error }
+        '409': { description: Duplicate name }
+  /api/v1/categories/{id}:
+    get:
+      tags: [Categories]
+      summary: Get a category
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: Category }
+        '404': { description: Not found }
+    put:
+      tags: [Categories]
+      summary: Update a category
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Categories]
+      summary: Soft-delete (deactivate) a category
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Deactivated }
+  /api/v1/items:
+    get:
+      tags: [Items]
+      summary: List/filter menu items
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: categoryId, in: query, schema: { type: integer } }
+        - { name: available, in: query, schema: { type: boolean } }
+        - { name: minPrice, in: query, schema: { type: number } }
+        - { name: maxPrice, in: query, schema: { type: number } }
+      responses:
+        '200': { description: Items }
+    post:
+      tags: [Items]
+      summary: Create a menu item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuItemRequest'
+      responses:
+        '201': { description: Created }
+  /api/v1/items/{id}:
+    get:
+      tags: [Items]
+      summary: Get a menu item
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: Item }
+    put:
+      tags: [Items]
+      summary: Update a menu item
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuItemRequest'
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Items]
+      summary: Soft-delete (deactivate) an item
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Deactivated }
+  /api/v1/orders:
+    get:
+      tags: [Orders]
+      summary: List orders
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [DRAFT, IN_PROGRESS, COMPLETED, CANCELLED] } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: size, in: query, schema: { type: integer, default: 20 } }
+      responses:
+        '200': { description: Paged orders }
+    post:
+      tags: [Orders]
+      summary: Create a draft order
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+      responses:
+        '201': { description: Draft created }
+  /api/v1/orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Get an order with items
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: Order }
+        '404': { description: Not found }
+  /api/v1/orders/{id}/items:
+    post:
+      tags: [Orders]
+      summary: Add an item to a draft order
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderItemRequest'
+      responses:
+        '200': { description: Updated order }
+        '409': { description: Order not a draft / item unavailable }
+  /api/v1/orders/{id}/items/{itemId}:
+    put:
+      tags: [Orders]
+      summary: Update an order item quantity
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - { name: itemId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderItemRequest'
+      responses:
+        '200': { description: Updated order }
+    delete:
+      tags: [Orders]
+      summary: Remove an item from a draft order
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - { name: itemId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Updated order }
+  /api/v1/orders/{id}/complete:
+    post:
+      tags: [Orders]
+      summary: Complete an order with payment
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteOrderRequest'
+      responses:
+        '200': { description: Completed order }
+        '409': { description: Empty order or insufficient payment }
+  /api/v1/orders/{id}/cancel:
+    post:
+      tags: [Orders]
+      summary: Cancel an order
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: Cancelled order }
+        '409': { description: Order cannot be cancelled }
+  /api/v1/users:
+    get:
+      tags: [Users]
+      summary: List users (manager only)
+      responses:
+        '200': { description: Users }
+        '403': { description: Forbidden }
+    post:
+      tags: [Users]
+      summary: Create a user (manager only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201': { description: Created }
+  /api/v1/users/{id}:
+    get:
+      tags: [Users]
+      summary: Get a user (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: User }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+  schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string, format: password }
+    LoginResponseEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            token: { type: string }
+            tokenType: { type: string }
+            expiresIn: { type: integer }
+            userId: { type: integer }
+            username: { type: string }
+            role: { type: string }
+    CategoryRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        active: { type: boolean }
+        parentId: { type: integer, nullable: true }
+    MenuItemRequest:
+      type: object
+      required: [name, price, categoryId]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        price: { type: number, minimum: 0 }
+        categoryId: { type: integer }
+        available: { type: boolean }
+        imageUrl: { type: string }
+    OrderRequest:
+      type: object
+      properties:
+        customerInfo: { type: string }
+    OrderItemRequest:
+      type: object
+      required: [menuItemId, quantity]
+      properties:
+        menuItemId: { type: integer }
+        quantity: { type: integer, minimum: 1 }
+    CompleteOrderRequest:
+      type: object
+      required: [paymentMethod, paymentAmount]
+      properties:
+        paymentMethod: { type: string, enum: [CASH, CARD, DIGITAL] }
+        paymentAmount: { type: number }
+    UserCreateRequest:
+      type: object
+      required: [username, password, role]
+      properties:
+        username: { type: string }
+        password: { type: string }
+        role: { type: string, enum: [MANAGER, CASHIER] }
+
+security:
+  - bearerAuth: []

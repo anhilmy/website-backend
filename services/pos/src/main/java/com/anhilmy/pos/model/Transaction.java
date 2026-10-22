@@ -2,7 +2,10 @@ package com.anhilmy.pos.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,13 +15,14 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 
 @Entity
 @Table(name = "transactions")
 public class Transaction {
+
     public enum Status {
         DRAFT, IN_PROGRESS, COMPLETED, CANCELLED
     }
@@ -28,22 +32,17 @@ public class Transaction {
     private Long id;
 
     @NotNull
-    @Positive
-    @Column(nullable = false)
-    private BigDecimal totalAmount;
+    @Column(name = "total_amount", nullable = false)
+    private BigDecimal totalAmount = BigDecimal.ZERO;
 
-    @NotNull
-    @Positive
-    @Column(nullable = false)
-    private BigDecimal taxAmount;
+    @Column(name = "tax_amount", nullable = false)
+    private BigDecimal taxAmount = BigDecimal.ZERO;
 
-    @NotNull
-    @Column(nullable = false)
+    /** Populated on completion; null while the order is a draft. */
+    @Column(name = "payment_method")
     private String paymentMethod;
 
-    @NotNull
-    @Positive
-    @Column(nullable = false)
+    @Column(name = "payment_amount")
     private BigDecimal paymentAmount;
 
     @NotNull
@@ -51,11 +50,15 @@ public class Transaction {
     @Column(nullable = false)
     private Status status = Status.DRAFT;
 
+    @Column(name = "customer_info")
     private String customerInfo;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "cashier_id", nullable = false)
     private User cashier;
+
+    @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TransactionItem> items = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -64,6 +67,17 @@ public class Transaction {
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     public Transaction() {}
+
+    /** Adds a line item and wires the back-reference. */
+    public void addItem(TransactionItem item) {
+        item.setTransaction(this);
+        this.items.add(item);
+    }
+
+    public void removeItem(TransactionItem item) {
+        this.items.remove(item);
+        item.setTransaction(null);
+    }
 
     // Getters and setters
     public Long getId() {
@@ -128,6 +142,14 @@ public class Transaction {
 
     public void setCashier(User cashier) {
         this.cashier = cashier;
+    }
+
+    public List<TransactionItem> getItems() {
+        return items;
+    }
+
+    public void setItems(List<TransactionItem> items) {
+        this.items = items;
     }
 
     public LocalDateTime getCreatedAt() {

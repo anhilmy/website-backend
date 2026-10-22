@@ -35,12 +35,12 @@ public class TransactionItem {
 
         @NotNull
         @Positive
-        @Column(nullable = false)
+        @Column(name = "unit_price", nullable = false)
         private BigDecimal unitPrice;
 
         @NotNull
         @Positive
-        @Column(nullable = false)
+        @Column(name = "total_price", nullable = false)
         private BigDecimal totalPrice;
 
         public TransactionItem() {}

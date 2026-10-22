@@ -11,7 +11,7 @@ public class PostgresConfig extends DatabaseConfig {
         props.setProperty("hibernate.connection.url", ConfigManager.get("db.url"));
         props.setProperty("hibernate.connection.username", ConfigManager.get("db.username"));
         props.setProperty("hibernate.connection.password", ConfigManager.get("db.password"));
-        props.setProperty("hibernate.hbm2ddl.auto", "validate");
+        props.setProperty("hibernate.hbm2ddl.auto", ConfigManager.get("db.hbm2ddl", "validate"));
         props.setProperty("hibernate.show_sql", ConfigManager.get("log.show_sql"));
         // Connection pooling (HikariCP)
         props.setProperty("hibernate.hikari.maximumPoolSize", "10");

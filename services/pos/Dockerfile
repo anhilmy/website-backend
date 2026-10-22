@@ -44,11 +44,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # Set working directory
 WORKDIR /app
 
-# Copy built JAR from builder stage
-COPY --from=builder /app/target/spark-app-*.jar app.jar
-
-# Copy configuration files
-COPY --from=builder /app/src/main/resources/ ./resources/
+# Copy built fat JAR from builder stage
+COPY --from=builder /app/target/pos-app.jar app.jar
 
 # Create directories for logs and data
 RUN mkdir -p /app/logs /app/data && \

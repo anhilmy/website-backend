@@ -1,0 +1,43 @@
+name: POS CI
+
+on:
+  push:
+    paths:
+      - 'services/pos/**'
+      - '.github/workflows/pos-ci.yml'
+  pull_request:
+    paths:
+      - 'services/pos/**'
+
+jobs:
+  build-test:
+    name: Build & test POS service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/pos
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compile
+        run: mvn -B -q compile
+
+      - name: Run tests
+        run: mvn -B test
+
+      - name: Package (fat JAR)
+        run: mvn -B -q package -DskipTests
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-app-jar
+          path: services/pos/target/pos-app.jar
+          if-no-files-found: error
