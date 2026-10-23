@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import com.anhilmy.pos.config.ConfigManager;
 import com.anhilmy.pos.controller.AuthController;
 import com.anhilmy.pos.controller.CategoryController;
+import com.anhilmy.pos.controller.DiningTableController;
 import com.anhilmy.pos.controller.DocsController;
 import com.anhilmy.pos.controller.HealthCheckController;
 import com.anhilmy.pos.controller.MenuController;
@@ -118,6 +119,16 @@ public class App {
             res.body(Json.gson().toJson(ApiResponse.error(e.getCode(), e.getMessage())));
         });
 
+        // Concurrent edits / unique-constraint races surface as conflicts, not 500s.
+        exception(org.hibernate.StaleObjectStateException.class,
+                (e, req, res) -> conflict(res, "The record was changed by someone else; retry"));
+        exception(jakarta.persistence.OptimisticLockException.class,
+                (e, req, res) -> conflict(res, "The record was changed by someone else; retry"));
+        exception(jakarta.persistence.RollbackException.class,
+                (e, req, res) -> conflict(res, "Conflicting update; retry"));
+        exception(org.hibernate.exception.ConstraintViolationException.class,
+                (e, req, res) -> conflict(res, "That value conflicts with an existing record"));
+
         exception(Exception.class, (e, req, res) -> {
             DbManager.rollbackAndClose();
             String correlationId = req.attribute(RequestResponseLogger.ATTR_CORRELATION_ID);
@@ -134,6 +145,13 @@ public class App {
             return Json.gson().toJson(
                     ApiResponse.error("NOT_FOUND", "Route not found: " + req.pathInfo()));
         });
+    }
+
+    private static Object conflict(spark.Response res, String message) {
+        DbManager.rollbackAndClose();
+        res.type("application/json");
+        res.status(409);
+        return Json.gson().toJson(ApiResponse.error("CONFLICT", message));
     }
 
     private static void registerRoutes() {
@@ -154,6 +172,7 @@ public class App {
             CategoryController.registerRoutes();
             MenuItemController.registerRoutes();
             OrderController.registerRoutes();
+            DiningTableController.registerRoutes();
             UserController.registerRoutes();
         });
     }

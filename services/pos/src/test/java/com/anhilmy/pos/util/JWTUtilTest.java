@@ -2,6 +2,7 @@ package com.anhilmy.pos.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,7 +27,14 @@ class JWTUtilTest {
     @Test
     void rejectsTamperedToken() {
         String token = JWTUtil.generateToken(1L, "manager", "MANAGER");
-        String tampered = token.substring(0, token.length() - 2) + "xx";
+        // Flip a character in the middle of the signature segment. (Changing the trailing
+        // base64 chars can decode to identical bytes, which made this test flaky.)
+        int sigStart = token.lastIndexOf('.') + 1;
+        int pos = sigStart + (token.length() - sigStart) / 2;
+        char original = token.charAt(pos);
+        char replacement = original == 'A' ? 'B' : 'A';
+        String tampered = token.substring(0, pos) + replacement + token.substring(pos + 1);
+        assertNotEquals(token, tampered);
         assertThrows(AuthenticationException.class, () -> JWTUtil.validateAndParse(tampered));
     }
 

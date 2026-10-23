@@ -175,6 +175,7 @@ db-migrate:
 	sqlite3 pos_dev.db < src/main/resources/db/schema_sqlite.sql
 	sqlite3 pos_dev.db < src/main/resources/db/migrations/V1__baseline.sql
 	sqlite3 pos_dev.db < src/main/resources/db/migrations/V2__menu_category_parent_and_indexes.sql
+	sqlite3 pos_dev.db < src/main/resources/db/migrations/V3__dining_tables_sqlite.sql
 
 # Docker operations
 .PHONY: docker-build

@@ -62,8 +62,26 @@ CREATE TABLE IF NOT EXISTS transaction_items (
     FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
 );
 
+CREATE TABLE IF NOT EXISTS dining_tables (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    area VARCHAR(255) NOT NULL,
+    status VARCHAR(255) NOT NULL DEFAULT 'AVAILABLE',
+    current_transaction_id BIGINT,
+    joined_to_id BIGINT,
+    version BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (current_transaction_id) REFERENCES transactions(id),
+    FOREIGN KEY (joined_to_id) REFERENCES dining_tables(id)
+);
+
 -- Indexes for common lookups
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
+CREATE INDEX IF NOT EXISTS idx_dining_tables_status ON dining_tables (status);
+CREATE INDEX IF NOT EXISTS idx_dining_tables_area ON dining_tables (area);
+-- A bill can be seated at most one table (NULLs are distinct, so free tables are unaffected).
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dining_tables_bill ON dining_tables (current_transaction_id);
 CREATE INDEX IF NOT EXISTS idx_menu_categories_active ON menu_categories (active);
 CREATE INDEX IF NOT EXISTS idx_menu_items_category ON menu_items (category_id);
 CREATE INDEX IF NOT EXISTS idx_menu_items_available ON menu_items (available);

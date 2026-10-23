@@ -7,10 +7,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.anhilmy.pos.config.ConfigManager;
+import com.anhilmy.pos.model.DiningTable;
 import com.anhilmy.pos.model.MenuCategory;
 import com.anhilmy.pos.model.MenuItem;
 import com.anhilmy.pos.model.Roles;
+import com.anhilmy.pos.model.TableStatus;
 import com.anhilmy.pos.model.User;
+import com.anhilmy.pos.repository.DiningTableRepository;
 import com.anhilmy.pos.repository.MenuCategoryRepository;
 import com.anhilmy.pos.repository.MenuItemRepository;
 import com.anhilmy.pos.repository.UserRepository;
@@ -42,6 +45,7 @@ public final class DataSeeder {
         try {
             seedUsers();
             seedMenu();
+            seedTables();
             DbManager.commitAndClose();
         } catch (RuntimeException e) {
             DbManager.rollbackAndClose();
@@ -78,6 +82,28 @@ public final class DataSeeder {
         items.save(item("Grilled Chicken", "Chicken breast with vegetables", "12.00", mains));
         items.save(item("Chocolate Cake", "Slice of chocolate cake", "5.00", desserts));
         log.info("Seeded sample menu categories and items");
+    }
+
+    private static void seedTables() {
+        DiningTableRepository tables = new DiningTableRepository();
+        if (tables.count() > 0) {
+            return;
+        }
+        String[][] layout = {
+                {"T1", "Indoor"}, {"T2", "Indoor"}, {"T3", "Indoor"}, {"T4", "Indoor"},
+                {"P1", "Patio"}, {"P2", "Patio"},
+                {"B1", "Bar"}, {"B2", "Bar"},
+        };
+        for (String[] t : layout) {
+            DiningTable table = new DiningTable();
+            table.setName(t[0]);
+            table.setArea(t[1]);
+            table.setStatus(TableStatus.AVAILABLE);
+            table.setCreatedAt(LocalDateTime.now());
+            table.setUpdatedAt(LocalDateTime.now());
+            tables.save(table);
+        }
+        log.info("Seeded {} dining tables", layout.length);
     }
 
     private static User user(String username, String rawPassword, String role) {

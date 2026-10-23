@@ -35,7 +35,8 @@ public final class Json {
             "passwordHash", // never expose credentials
             "menuItems", // MenuCategory -> items (cycle via MenuItem.menuCategory)
             "children", // MenuCategory self-hierarchy cycle
-            "transaction" // TransactionItem -> Transaction back-reference (cycle)
+            "transaction", // TransactionItem -> Transaction back-reference (cycle)
+            "joinedTo" // DiningTable self-reference (cycle risk); use TableResponse instead
     ));
 
     private static final ExclusionStrategy EXCLUSIONS = new ExclusionStrategy() {

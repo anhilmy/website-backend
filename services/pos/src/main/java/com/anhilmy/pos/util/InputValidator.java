@@ -27,6 +27,15 @@ public final class InputValidator {
         return value.trim();
     }
 
+    /** Non-blank and no longer than {@code max} characters. */
+    public static String requireMaxLength(String value, String field, int max) {
+        String clean = requireNonBlank(value, field);
+        if (clean.length() > max) {
+            throw new ValidationException(field + " must be at most " + max + " characters");
+        }
+        return clean;
+    }
+
     public static <T> T requireNonNull(T value, String field) {
         if (value == null) {
             throw new ValidationException(field + " is required");

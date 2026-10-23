@@ -38,12 +38,16 @@ exception handlers: ApiException → status/code, anything else → 500
 
 ```
 User 1───* Transaction 1───* TransactionItem *───1 MenuItem *───1 MenuCategory
-                                                                  │
-                                                          MenuCategory *───1 MenuCategory (parent)
+                  ▲                                                 │
+                  │ 0..1                                    MenuCategory *───1 MenuCategory (parent)
+              DiningTable *───1 DiningTable (joinedTo host)
 ```
 
 Totals are derived, never trusted from the client: `TransactionService.recalcTotals()` recomputes
 `subtotal → tax → total` from the line items on every mutation.
+
+A `DiningTable` may point at one open `Transaction` (`currentTransaction`) and, when merged, at a
+host table (`joinedTo`). Joined tables share the host's bill; releasing the host clears it for all.
 
 ## Security
 

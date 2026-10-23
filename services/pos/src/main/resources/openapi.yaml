@@ -15,6 +15,7 @@ tags:
   - name: Categories
   - name: Items
   - name: Orders
+  - name: Tables
   - name: Users
 
 paths:
@@ -307,6 +308,136 @@ paths:
       responses:
         '200': { description: User }
 
+  /api/v1/tables:
+    get:
+      tags: [Tables]
+      summary: List floor tables
+      parameters:
+        - { name: area, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [AVAILABLE, RESERVED, OCCUPIED, JOINED, CLEANING, OUT_OF_SERVICE] } }
+      responses:
+        '200': { description: Tables }
+    post:
+      tags: [Tables]
+      summary: Create a table (manager only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TableRequest'
+      responses:
+        '201': { description: Created }
+        '409': { description: Duplicate name }
+  /api/v1/tables/{id}:
+    get:
+      tags: [Tables]
+      summary: Get a table
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: Table }
+    put:
+      tags: [Tables]
+      summary: Update name/area (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TableRequest'
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Tables]
+      summary: Delete a table (manager only; blocked while in use)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Deleted }
+        '409': { description: Table in use }
+  /api/v1/tables/{id}/status:
+    patch:
+      tags: [Tables]
+      summary: Change status (JOINED is rejected; use /join)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TableStatusRequest'
+      responses:
+        '200': { description: Updated }
+        '409': { description: Illegal transition }
+  /api/v1/tables/{id}/open:
+    post:
+      tags: [Tables]
+      summary: Open a table (creates and attaches a draft order)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenTableRequest'
+      responses:
+        '200': { description: Occupied table with a new bill }
+        '409': { description: Table not openable }
+  /api/v1/tables/{id}/assign:
+    post:
+      tags: [Tables]
+      summary: Seat an existing DRAFT order at the table
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTableRequest'
+      responses:
+        '200': { description: Table }
+        '403': { description: Not your order }
+        '409': { description: Order not seatable }
+  /api/v1/tables/{id}/release:
+    post:
+      tags: [Tables]
+      summary: Release the table (cancels the open bill, frees joined tables, marks for cleaning)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: Table }
+        '409': { description: Table is a joined table }
+  /api/v1/tables/{id}/join:
+    post:
+      tags: [Tables]
+      summary: Merge this table into a host table (share one bill)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinTableRequest'
+      responses:
+        '200': { description: Joined table }
+        '400': { description: targetTableId missing }
+        '409': { description: Join not allowed }
+  /api/v1/tables/{id}/unjoin:
+    post:
+      tags: [Tables]
+      summary: Detach a joined table from its host
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200': { description: Table }
+        '409': { description: Table is not joined }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -380,6 +511,42 @@ components:
         username: { type: string }
         password: { type: string }
         role: { type: string, enum: [MANAGER, CASHIER] }
+    TableRequest:
+      type: object
+      required: [name, area]
+      properties:
+        name: { type: string, maxLength: 100 }
+        area: { type: string, maxLength: 100 }
+    TableStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [AVAILABLE, RESERVED, OCCUPIED, CLEANING, OUT_OF_SERVICE] }
+    OpenTableRequest:
+      type: object
+      properties:
+        customerInfo: { type: string }
+    AssignTableRequest:
+      type: object
+      required: [transactionId]
+      properties:
+        transactionId: { type: integer }
+    JoinTableRequest:
+      type: object
+      required: [targetTableId]
+      properties:
+        targetTableId: { type: integer }
+    TableResponse:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        area: { type: string }
+        status: { type: string }
+        currentTransactionId: { type: integer, nullable: true }
+        currentTransactionTotal: { type: number, nullable: true }
+        joinedToId: { type: integer, nullable: true }
+        joinedToName: { type: string, nullable: true }
 
 security:
   - bearerAuth: []

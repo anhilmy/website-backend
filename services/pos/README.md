@@ -112,6 +112,7 @@ send `Authorization: Bearer <token>`. Interactive docs at **`/docs`** (spec: `/o
 | Categories | `GET/POST /categories`, `GET/PUT/DELETE /categories/{id}` | bearer |
 | Items | `GET/POST /items`, `GET/PUT/DELETE /items/{id}` | bearer |
 | Orders | `GET/POST /orders`, `GET /orders/{id}`, `POST /orders/{id}/items`, `PUT/DELETE /orders/{id}/items/{itemId}`, `POST /orders/{id}/complete`, `POST /orders/{id}/cancel` | bearer |
+| Tables | `GET/POST /tables`, `GET/PUT/DELETE /tables/{id}`, `PATCH /tables/{id}/status`, `POST /tables/{id}/open`, `/assign`, `/release`, `/join`, `/unjoin` | bearer (layout changes: MANAGER) |
 | Users | `GET/POST /users`, `GET /users/{id}`, `PUT /users/{id}/password` | bearer, MANAGER (password: self) |
 
 ### Authorization
@@ -137,6 +138,14 @@ send `Authorization: Bearer <token>`. Interactive docs at **`/docs`** (spec: `/o
 `DRAFT → (add/modify items) → COMPLETED` (immutable) or `CANCELLED`. Totals are always recomputed
 from line items (`subtotal + tax`), so the stored header can never drift from the items.
 
+### Table lifecycle
+
+`AVAILABLE → RESERVED/OPENED(OCCUPIED) → CLEANING → AVAILABLE`, plus `JOINED` and
+`OUT_OF_SERVICE`. Opening a table creates and attaches a draft order; **joining** merges a table
+into a host table so both share one bill (`POST /tables/{id}/join`); releasing a table cancels any
+still-open bill, frees its joined tables and marks it for cleaning. Settling or cancelling a bill
+also frees its table automatically, so the floor never keeps a finished bill on a table.
+
 ## Status
 
 | Area | State |
@@ -144,10 +153,11 @@ from line items (`subtotal + tax`), so the stored header can never drift from th
 | Auth (JWT, BCrypt, logout/blacklist, role checks) | done |
 | Menu categories + items (CRUD, search/filter, soft delete) | done |
 | Orders (draft, items, complete, cancel, totals, immutability) | done |
+| Tables (floor plan, occupancy, open/assign/release, join/unjoin) | done |
 | Dual DB (SQLite/PostgreSQL), pooling, migrations | done |
 | Error handling, validation, response envelope, pagination | done |
 | Logging (console/file/Kafka, correlation IDs, audit) | done |
 | OpenAPI spec + Swagger UI | done |
-| Tests (unit + integration) | done (31 tests; no HTTP-controller/coverage gate) |
+| Tests (unit + integration) | done (46 tests; no HTTP-controller/coverage gate) |
 | CI (build + test + package) | done — `website-backend/.github/workflows/pos-ci.yml` |
 | Redis caching, email, inventory, loyalty, reporting, metrics | not started (optional phase 13) |

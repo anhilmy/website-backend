@@ -45,6 +45,7 @@ public final class AuthenticationFilter {
             "/api/v1/categories",
             "/api/v1/items",
             "/api/v1/orders",
+            "/api/v1/tables",
             "/api/v1/users");
 
     private AuthenticationFilter() {

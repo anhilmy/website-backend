@@ -37,6 +37,10 @@ import static spark.Spark.put;
 public class OrderController {
 
     private static final TransactionService service = new TransactionService();
+    private static final com.anhilmy.pos.service.DiningTableService tableService =
+            new com.anhilmy.pos.service.DiningTableService();
+    private static final com.anhilmy.pos.repository.DiningTableRepository tableRepository =
+            new com.anhilmy.pos.repository.DiningTableRepository();
 
     public static void registerRoutes() {
         // Create a draft order for the authenticated cashier.
@@ -99,6 +103,7 @@ public class OrderController {
             requireAccessible(req, service.getById(id));
             CompleteOrderRequest body = Responder.parse(req, CompleteOrderRequest.class);
             Transaction completed = service.complete(id, body.paymentMethod, body.paymentAmount);
+            tableService.releaseSeatedTable(id);
             audit(req, "order.completed", id, completed.getTotalAmount().toString());
             return Responder.ok(res, completed);
         }));
@@ -107,6 +112,7 @@ public class OrderController {
             Long id = InputValidator.parseLongId(req.params(":id"), "id");
             requireAccessible(req, service.getById(id));
             Transaction cancelled = service.cancel(id);
+            tableService.releaseSeatedTable(id);
             audit(req, "order.cancelled", id, null);
             return Responder.ok(res, cancelled);
         }));
@@ -114,6 +120,10 @@ public class OrderController {
 
     private static void requireAccessible(Request req, Transaction tx) {
         if (Roles.MANAGER.equals(AuthenticationFilter.role(req))) {
+            return;
+        }
+        // Bills seated at a table are floor-owned: any cashier can serve and settle them.
+        if (tableRepository.findByTransactionId(tx.getId()).isPresent()) {
             return;
         }
         Long uid = AuthenticationFilter.userId(req);
