@@ -9,9 +9,13 @@ import com.anhilmy.pos.config.ConfigManager;
 import com.anhilmy.pos.config.DatabaseConfig;
 import com.anhilmy.pos.config.PostgresConfig;
 import com.anhilmy.pos.config.SQLiteConfig;
+import com.anhilmy.pos.model.Charge;
+import com.anhilmy.pos.model.ChargeTemplate;
 import com.anhilmy.pos.model.DiningTable;
 import com.anhilmy.pos.model.MenuCategory;
 import com.anhilmy.pos.model.MenuItem;
+import com.anhilmy.pos.model.PaymentMethod;
+import com.anhilmy.pos.model.Refund;
 import com.anhilmy.pos.model.Transaction;
 import com.anhilmy.pos.model.TransactionItem;
 import com.anhilmy.pos.model.User;
@@ -47,6 +51,10 @@ public class HibernateUtil {
             configuration.addAnnotatedClass(TransactionItem.class);
             configuration.addAnnotatedClass(User.class);
             configuration.addAnnotatedClass(DiningTable.class);
+            configuration.addAnnotatedClass(PaymentMethod.class);
+            configuration.addAnnotatedClass(ChargeTemplate.class);
+            configuration.addAnnotatedClass(Charge.class);
+            configuration.addAnnotatedClass(Refund.class);
 
             ServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
                     .applySettings(configuration.getProperties()).build();

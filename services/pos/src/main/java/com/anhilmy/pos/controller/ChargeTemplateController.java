@@ -1,0 +1,55 @@
+package com.anhilmy.pos.controller;
+
+import com.anhilmy.pos.dto.ChargeTemplateRequest;
+import com.anhilmy.pos.exception.ValidationException;
+import com.anhilmy.pos.middleware.AuthenticationFilter;
+import com.anhilmy.pos.model.Roles;
+import com.anhilmy.pos.service.ChargeTemplateService;
+import com.anhilmy.pos.util.InputValidator;
+import com.anhilmy.pos.util.Responder;
+import com.anhilmy.pos.util.Routes;
+
+import static spark.Spark.delete;
+import static spark.Spark.get;
+import static spark.Spark.post;
+import static spark.Spark.put;
+
+/** Charge templates: public read for the till, manager-only mutations. */
+public class ChargeTemplateController {
+
+    private static final ChargeTemplateService service = new ChargeTemplateService();
+
+    public static void registerRoutes() {
+        get("/charge-templates", Routes.wrap((req, res) -> Responder.ok(res,
+                service.list(parseBooleanOrNull(req.queryParams("active"), "active")))));
+
+        post("/charge-templates", Routes.wrap((req, res) -> {
+            AuthenticationFilter.requireRole(req, Roles.MANAGER);
+            return Responder.created(res,
+                    service.create(Responder.parse(req, ChargeTemplateRequest.class)));
+        }));
+
+        put("/charge-templates/:id", Routes.wrap((req, res) -> {
+            AuthenticationFilter.requireRole(req, Roles.MANAGER);
+            Long id = InputValidator.parseLongId(req.params(":id"), "id");
+            return Responder.ok(res,
+                    service.update(id, Responder.parse(req, ChargeTemplateRequest.class)));
+        }));
+
+        delete("/charge-templates/:id", Routes.wrap((req, res) -> {
+            AuthenticationFilter.requireRole(req, Roles.MANAGER);
+            service.deactivate(InputValidator.parseLongId(req.params(":id"), "id"));
+            return Responder.noContent(res);
+        }));
+    }
+
+    private static Boolean parseBooleanOrNull(String raw, String field) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        if (!raw.equalsIgnoreCase("true") && !raw.equalsIgnoreCase("false")) {
+            throw new ValidationException(field + " must be true or false");
+        }
+        return Boolean.valueOf(raw);
+    }
+}

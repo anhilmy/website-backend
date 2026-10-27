@@ -1,9 +1,12 @@
 package com.anhilmy.pos.model;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -16,6 +19,12 @@ import jakarta.validation.constraints.Positive;
 @Entity
 @Table(name = "transaction_items")
 public class TransactionItem {
+
+        /** Voided lines stay on the bill for audit but are excluded from totals. */
+        public enum Status {
+                ACTIVE, VOIDED
+        }
+
         @Id
         @GeneratedValue(strategy = GenerationType.IDENTITY)
         private Long id;
@@ -42,6 +51,20 @@ public class TransactionItem {
         @Positive
         @Column(name = "total_price", nullable = false)
         private BigDecimal totalPrice;
+
+        @NotNull
+        @Enumerated(EnumType.STRING)
+        @Column(nullable = false, length = 16)
+        private Status status = Status.ACTIVE;
+
+        @Column(name = "void_reason", length = 255)
+        private String voidReason;
+
+        @Column(name = "voided_by", length = 255)
+        private String voidedBy;
+
+        @Column(name = "voided_at")
+        private LocalDateTime voidedAt;
 
         public TransactionItem() {}
 
@@ -92,5 +115,37 @@ public class TransactionItem {
 
         public void setTotalPrice(BigDecimal totalPrice) {
                 this.totalPrice = totalPrice;
+        }
+
+        public Status getStatus() {
+                return status;
+        }
+
+        public void setStatus(Status status) {
+                this.status = status;
+        }
+
+        public String getVoidReason() {
+                return voidReason;
+        }
+
+        public void setVoidReason(String voidReason) {
+                this.voidReason = voidReason;
+        }
+
+        public String getVoidedBy() {
+                return voidedBy;
+        }
+
+        public void setVoidedBy(String voidedBy) {
+                this.voidedBy = voidedBy;
+        }
+
+        public LocalDateTime getVoidedAt() {
+                return voidedAt;
+        }
+
+        public void setVoidedAt(LocalDateTime voidedAt) {
+                this.voidedAt = voidedAt;
         }
 }

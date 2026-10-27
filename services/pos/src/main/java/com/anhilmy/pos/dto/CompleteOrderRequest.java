@@ -6,4 +6,5 @@ import java.math.BigDecimal;
 public class CompleteOrderRequest {
     public String paymentMethod;
     public BigDecimal paymentAmount;
+    public String paymentReference;
 }

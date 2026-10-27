@@ -17,6 +17,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotNull;
 
 @Entity
@@ -24,16 +25,30 @@ import jakarta.validation.constraints.NotNull;
 public class Transaction {
 
     public enum Status {
-        DRAFT, IN_PROGRESS, COMPLETED, CANCELLED
+        DRAFT, IN_PROGRESS, COMPLETED, CANCELLED,
+        PARTIALLY_REFUNDED, REFUNDED, AMENDED
     }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Optimistic lock: concurrent voids/refunds/amends must not double-apply. */
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @NotNull
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount = BigDecimal.ZERO;
+
+    /** Sum of line totals; persisted so a settled bill can be reconciled without the lines. */
+    @Column(name = "subtotal_amount", nullable = false)
+    private BigDecimal subtotalAmount = BigDecimal.ZERO;
+
+    /** Sum of every evaluated charge. */
+    @Column(name = "charges_amount", nullable = false)
+    private BigDecimal chargesAmount = BigDecimal.ZERO;
 
     @Column(name = "tax_amount", nullable = false)
     private BigDecimal taxAmount = BigDecimal.ZERO;
@@ -44,6 +59,20 @@ public class Transaction {
 
     @Column(name = "payment_amount")
     private BigDecimal paymentAmount;
+
+    /** Card/QRIS reference or transfer note captured at settlement. */
+    @Column(name = "payment_reference")
+    private String paymentReference;
+
+    /** Running aggregate of append-only refunds; the original total is never reduced. */
+    @Column(name = "refunded_amount", nullable = false)
+    private BigDecimal refundedAmount = BigDecimal.ZERO;
+
+    @Column(name = "amended_from_id")
+    private Long amendedFromId;
+
+    @Column(name = "amended_to_id")
+    private Long amendedToId;
 
     @NotNull
     @Enumerated(EnumType.STRING)
@@ -59,6 +88,12 @@ public class Transaction {
 
     @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TransactionItem> items = new ArrayList<>();
+
+    @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Charge> charges = new ArrayList<>();
+
+    @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Refund> refunds = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -79,6 +114,23 @@ public class Transaction {
         item.setTransaction(null);
     }
 
+    /** Adds an order charge and wires the back-reference. */
+    public void addCharge(Charge charge) {
+        charge.setTransaction(this);
+        this.charges.add(charge);
+    }
+
+    public void removeCharge(Charge charge) {
+        this.charges.remove(charge);
+        charge.setTransaction(null);
+    }
+
+    /** Adds a refund record and wires the back-reference. */
+    public void addRefund(Refund refund) {
+        refund.setTransaction(this);
+        this.refunds.add(refund);
+    }
+
     // Getters and setters
     public Long getId() {
         return id;
@@ -88,12 +140,36 @@ public class Transaction {
         this.id = id;
     }
 
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
     public BigDecimal getTotalAmount() {
         return totalAmount;
     }
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public BigDecimal getSubtotalAmount() {
+        return subtotalAmount;
+    }
+
+    public void setSubtotalAmount(BigDecimal subtotalAmount) {
+        this.subtotalAmount = subtotalAmount;
+    }
+
+    public BigDecimal getChargesAmount() {
+        return chargesAmount;
+    }
+
+    public void setChargesAmount(BigDecimal chargesAmount) {
+        this.chargesAmount = chargesAmount;
     }
 
     public BigDecimal getTaxAmount() {
@@ -118,6 +194,38 @@ public class Transaction {
 
     public void setPaymentAmount(BigDecimal paymentAmount) {
         this.paymentAmount = paymentAmount;
+    }
+
+    public String getPaymentReference() {
+        return paymentReference;
+    }
+
+    public void setPaymentReference(String paymentReference) {
+        this.paymentReference = paymentReference;
+    }
+
+    public BigDecimal getRefundedAmount() {
+        return refundedAmount;
+    }
+
+    public void setRefundedAmount(BigDecimal refundedAmount) {
+        this.refundedAmount = refundedAmount;
+    }
+
+    public Long getAmendedFromId() {
+        return amendedFromId;
+    }
+
+    public void setAmendedFromId(Long amendedFromId) {
+        this.amendedFromId = amendedFromId;
+    }
+
+    public Long getAmendedToId() {
+        return amendedToId;
+    }
+
+    public void setAmendedToId(Long amendedToId) {
+        this.amendedToId = amendedToId;
     }
 
     public Status getStatus() {
@@ -150,6 +258,22 @@ public class Transaction {
 
     public void setItems(List<TransactionItem> items) {
         this.items = items;
+    }
+
+    public List<Charge> getCharges() {
+        return charges;
+    }
+
+    public void setCharges(List<Charge> charges) {
+        this.charges = charges;
+    }
+
+    public List<Refund> getRefunds() {
+        return refunds;
+    }
+
+    public void setRefunds(List<Refund> refunds) {
+        this.refunds = refunds;
     }
 
     public LocalDateTime getCreatedAt() {

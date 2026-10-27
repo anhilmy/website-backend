@@ -36,6 +36,15 @@ public final class InputValidator {
         return clean;
     }
 
+    /** Optional free text: sanitised and length-checked when present. */
+    public static String sanitizeMax(String value, String field, int max) {
+        String clean = sanitize(value);
+        if (clean != null && clean.length() > max) {
+            throw new ValidationException(field + " must be at most " + max + " characters");
+        }
+        return clean;
+    }
+
     public static <T> T requireNonNull(T value, String field) {
         if (value == null) {
             throw new ValidationException(field + " is required");

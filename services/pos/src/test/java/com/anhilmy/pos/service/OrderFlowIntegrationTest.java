@@ -2,7 +2,6 @@ package com.anhilmy.pos.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,11 +14,13 @@ import com.anhilmy.pos.db.DbManager;
 import com.anhilmy.pos.exception.BusinessRuleException;
 import com.anhilmy.pos.model.MenuCategory;
 import com.anhilmy.pos.model.MenuItem;
+import com.anhilmy.pos.model.PaymentMethod;
 import com.anhilmy.pos.model.Roles;
 import com.anhilmy.pos.model.Transaction;
 import com.anhilmy.pos.model.User;
 import com.anhilmy.pos.repository.MenuCategoryRepository;
 import com.anhilmy.pos.repository.MenuItemRepository;
+import com.anhilmy.pos.repository.PaymentMethodRepository;
 import com.anhilmy.pos.repository.TransactionRepository;
 import com.anhilmy.pos.repository.UserRepository;
 import com.anhilmy.pos.util.PasswordUtil;
@@ -34,11 +35,30 @@ class OrderFlowIntegrationTest {
     private final MenuCategoryRepository categoryRepository = new MenuCategoryRepository();
     private final MenuItemRepository menuItemRepository = new MenuItemRepository();
     private final TransactionRepository transactionRepository = new TransactionRepository();
+    private final PaymentMethodRepository paymentMethodRepository = new PaymentMethodRepository();
     private final TransactionService service = new TransactionService();
 
     @BeforeEach
     void openSession() {
         DbManager.openSession();
+        seedPaymentMethod("CASH", true);
+        seedPaymentMethod("CARD", false);
+    }
+
+    private void seedPaymentMethod(String code, boolean isCash) {
+        if (paymentMethodRepository.findByCode(code).isPresent()) {
+            return;
+        }
+        PaymentMethod method = new PaymentMethod();
+        method.setCode(code);
+        method.setLabel(code);
+        method.setActive(true);
+        method.setIsCash(isCash);
+        method.setRequiresReference(false);
+        method.setSortOrder(0);
+        method.setCreatedAt(LocalDateTime.now());
+        method.setUpdatedAt(LocalDateTime.now());
+        paymentMethodRepository.save(method);
     }
 
     @AfterEach
@@ -108,6 +128,7 @@ class OrderFlowIntegrationTest {
         service.cancel(order.getId());
 
         assertEquals(Transaction.Status.CANCELLED, service.getById(order.getId()).getStatus());
-        assertTrue(true);
+        assertThrows(BusinessRuleException.class,
+                () -> service.addItem(order.getId(), 1L, 1));
     }
 }

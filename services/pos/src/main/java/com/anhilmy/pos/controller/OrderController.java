@@ -1,6 +1,8 @@
 package com.anhilmy.pos.controller;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,6 +13,8 @@ import com.anhilmy.pos.dto.CompleteOrderRequest;
 import com.anhilmy.pos.dto.OrderItemRequest;
 import com.anhilmy.pos.dto.OrderRequest;
 import com.anhilmy.pos.dto.PageResponse;
+import com.anhilmy.pos.dto.RefundRequest;
+import com.anhilmy.pos.dto.VoidItemRequest;
 import com.anhilmy.pos.exception.AuthorizationException;
 import com.anhilmy.pos.exception.ValidationException;
 import com.anhilmy.pos.logging.LoggingManager;
@@ -91,18 +95,70 @@ public class OrderController {
             return Responder.ok(res, service.updateItemQuantity(id, itemId, body.quantity));
         }));
 
+        // Kept for older clients; drafts now void the line instead of deleting it.
         delete("/orders/:id/items/:itemId", Routes.wrap((req, res) -> {
             Long id = InputValidator.parseLongId(req.params(":id"), "id");
             Long itemId = InputValidator.parseLongId(req.params(":itemId"), "itemId");
             requireAccessible(req, service.getById(id));
-            return Responder.ok(res, service.removeItem(id, itemId));
+            Transaction voided = service.voidItem(id, itemId, "Removed at till",
+                    AuthenticationFilter.username(req));
+            auditDetail(req, "order.item_voided", id,
+                    Map.<String, Object>of("itemId", itemId,
+                            "reason", "Removed at till"));
+            return Responder.ok(res, voided);
+        }));
+
+        post("/orders/:id/items/:itemId/void", Routes.wrap((req, res) -> {
+            Long id = InputValidator.parseLongId(req.params(":id"), "id");
+            Long itemId = InputValidator.parseLongId(req.params(":itemId"), "itemId");
+            requireAccessible(req, service.getById(id));
+            VoidItemRequest body = Responder.parse(req, VoidItemRequest.class);
+            Transaction voided = service.voidItem(id, itemId, body.reason,
+                    AuthenticationFilter.username(req));
+            auditDetail(req, "order.item_voided", id,
+                    Map.<String, Object>of("itemId", itemId,
+                            "reason", String.valueOf(body.reason)));
+            return Responder.ok(res, voided);
+        }));
+
+        post("/orders/:id/refunds", Routes.wrap((req, res) -> {
+            AuthenticationFilter.requireRole(req, Roles.MANAGER);
+            Long id = InputValidator.parseLongId(req.params(":id"), "id");
+            requireAccessible(req, service.getById(id));
+            RefundRequest body = Responder.parse(req, RefundRequest.class);
+            Transaction refunded = service.refundItem(id, body.transactionItemId,
+                    body.quantity, body.reason, body.paymentMethod,
+                    AuthenticationFilter.username(req));
+            if (!refunded.getRefunds().isEmpty()) {
+                var latest = refunded.getRefunds().get(refunded.getRefunds().size() - 1);
+                auditDetail(req, "order.refunded", id, Map.<String, Object>of(
+                        "refundId", latest.getId(),
+                        "itemId", latest.getTransactionItemId(),
+                        "quantity", latest.getQuantity(),
+                        "amount", latest.getAmount(),
+                        "method", String.valueOf(latest.getPaymentMethod()),
+                        "refundedTotal", refunded.getRefundedAmount()));
+            } else {
+                audit(req, "order.refunded", id, refunded.getRefundedAmount().toString());
+            }
+            return Responder.ok(res, refunded);
+        }));
+
+        post("/orders/:id/amend", Routes.wrap((req, res) -> {
+            Long id = InputValidator.parseLongId(req.params(":id"), "id");
+            requireAccessible(req, service.getById(id));
+            Transaction amended = service.amend(id, AuthenticationFilter.userId(req));
+            auditDetail(req, "order.amended", id,
+                    Map.<String, Object>of("newOrderId", amended.getId()));
+            return Responder.created(res, amended);
         }));
 
         post("/orders/:id/complete", Routes.wrap((req, res) -> {
             Long id = InputValidator.parseLongId(req.params(":id"), "id");
             requireAccessible(req, service.getById(id));
             CompleteOrderRequest body = Responder.parse(req, CompleteOrderRequest.class);
-            Transaction completed = service.complete(id, body.paymentMethod, body.paymentAmount);
+            Transaction completed = service.complete(id, body.paymentMethod, body.paymentAmount,
+                    body.paymentReference);
             tableService.releaseSeatedTable(id);
             audit(req, "order.completed", id, completed.getTotalAmount().toString());
             return Responder.ok(res, completed);
@@ -142,8 +198,17 @@ public class OrderController {
         LoggingManager.audit(action, fields);
     }
 
+    private static void auditDetail(Request req, String action, Long orderId,
+            Map<String, Object> extra) {
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("orderId", orderId);
+        fields.put("byUserId", AuthenticationFilter.userId(req));
+        fields.putAll(extra);
+        LoggingManager.audit(action, fields);
+    }
+
     private static PageResponse<Transaction> paginate(List<Transaction> all, int page, int size) {
-        int safeSize = size <= 0 ? 20 : size;
+        int safeSize = size <= 0 ? 20 : Math.min(size, 100);
         int safePage = page <= 0 ? 1 : page;
         int fromIndex = Math.min((safePage - 1) * safeSize, all.size());
         int toIndex = Math.min(fromIndex + safeSize, all.size());
@@ -168,7 +233,13 @@ public class OrderController {
         try {
             return LocalDateTime.parse(raw);
         } catch (DateTimeParseException e) {
-            throw new ValidationException("Invalid date-time (use ISO-8601): " + raw);
+            try {
+                return OffsetDateTime.parse(raw)
+                        .atZoneSameInstant(ZoneId.systemDefault())
+                        .toLocalDateTime();
+            } catch (DateTimeParseException e2) {
+                throw new ValidationException("Invalid date-time (use ISO-8601): " + raw);
+            }
         }
     }
 

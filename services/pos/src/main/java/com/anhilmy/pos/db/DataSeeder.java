@@ -7,15 +7,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.anhilmy.pos.config.ConfigManager;
+import com.anhilmy.pos.model.ChargeBasis;
+import com.anhilmy.pos.model.ChargeCalcType;
+import com.anhilmy.pos.model.ChargeTemplate;
 import com.anhilmy.pos.model.DiningTable;
 import com.anhilmy.pos.model.MenuCategory;
 import com.anhilmy.pos.model.MenuItem;
+import com.anhilmy.pos.model.PaymentMethod;
 import com.anhilmy.pos.model.Roles;
 import com.anhilmy.pos.model.TableStatus;
 import com.anhilmy.pos.model.User;
+import com.anhilmy.pos.repository.ChargeTemplateRepository;
 import com.anhilmy.pos.repository.DiningTableRepository;
 import com.anhilmy.pos.repository.MenuCategoryRepository;
 import com.anhilmy.pos.repository.MenuItemRepository;
+import com.anhilmy.pos.repository.PaymentMethodRepository;
 import com.anhilmy.pos.repository.UserRepository;
 import com.anhilmy.pos.util.PasswordUtil;
 
@@ -44,6 +50,8 @@ public final class DataSeeder {
         DbManager.openSession();
         try {
             seedUsers();
+            seedPaymentMethods();
+            seedChargeTemplates();
             seedMenu();
             seedTables();
             DbManager.commitAndClose();
@@ -78,10 +86,44 @@ public final class DataSeeder {
         MenuCategory mains = categories.save(category("Main Course", "Primary dishes"));
         MenuCategory desserts = categories.save(category("Desserts", "Sweet dishes"));
 
-        items.save(item("Espresso", "Single shot espresso", "2.50", beverages));
-        items.save(item("Grilled Chicken", "Chicken breast with vegetables", "12.00", mains));
-        items.save(item("Chocolate Cake", "Slice of chocolate cake", "5.00", desserts));
+        items.save(item("Espresso", "Single shot espresso", "18000", beverages));
+        items.save(item("Grilled Chicken", "Chicken breast with vegetables", "45000", mains));
+        items.save(item("Chocolate Cake", "Slice of chocolate cake", "30000", desserts));
         log.info("Seeded sample menu categories and items");
+    }
+
+    private static void seedPaymentMethods() {
+        PaymentMethodRepository methods = new PaymentMethodRepository();
+        if (methods.count() > 0) {
+            return;
+        }
+        methods.save(paymentMethod("CASH", "Cash", true, false, 10));
+        methods.save(paymentMethod("CARD", "Card", false, false, 20));
+        methods.save(paymentMethod("QRIS", "QRIS", false, false, 30));
+        methods.save(paymentMethod("EWALLET", "E-Wallet", false, false, 40));
+        methods.save(paymentMethod("TRANSFER", "Bank Transfer", false, true, 50));
+        log.info("Seeded default payment methods");
+    }
+
+    private static void seedChargeTemplates() {
+        ChargeTemplateRepository templates = new ChargeTemplateRepository();
+        if (templates.count() > 0) {
+            return;
+        }
+        ChargeTemplate tax = new ChargeTemplate();
+        tax.setCode("TAX");
+        tax.setLabel("Tax");
+        tax.setCalcType(ChargeCalcType.PERCENTAGE);
+        tax.setValue(new BigDecimal(ConfigManager.get("order.tax-rate", "0.10")));
+        tax.setBasis(ChargeBasis.SUBTOTAL);
+        tax.setSortOrder(10);
+        tax.setTaxable(false);
+        tax.setIsTax(true);
+        tax.setActive(true);
+        tax.setCreatedAt(LocalDateTime.now());
+        tax.setUpdatedAt(LocalDateTime.now());
+        templates.save(tax);
+        log.info("Seeded default charge template (Tax)");
     }
 
     private static void seedTables() {
@@ -124,6 +166,20 @@ public final class DataSeeder {
         c.setCreatedAt(LocalDateTime.now());
         c.setUpdatedAt(LocalDateTime.now());
         return c;
+    }
+
+    private static PaymentMethod paymentMethod(String code, String label, boolean isCash,
+            boolean requiresReference, int sortOrder) {
+        PaymentMethod m = new PaymentMethod();
+        m.setCode(code);
+        m.setLabel(label);
+        m.setActive(true);
+        m.setIsCash(isCash);
+        m.setRequiresReference(requiresReference);
+        m.setSortOrder(sortOrder);
+        m.setCreatedAt(LocalDateTime.now());
+        m.setUpdatedAt(LocalDateTime.now());
+        return m;
     }
 
     private static MenuItem item(String name, String description, String price,
