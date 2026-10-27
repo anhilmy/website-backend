@@ -3,7 +3,10 @@ package com.anhilmy.pos.util;
 import java.lang.reflect.Type;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -69,13 +72,22 @@ public final class Json {
             implements JsonSerializer<LocalDateTime>, JsonDeserializer<LocalDateTime> {
         @Override
         public JsonElement serialize(LocalDateTime src, Type type, JsonSerializationContext ctx) {
-            return new JsonPrimitive(src.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            // LocalDateTime has no zone; attach the server zone so browsers parse the instant.
+            return new JsonPrimitive(src.atZone(ZoneId.systemDefault())
+                    .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         }
 
         @Override
         public LocalDateTime deserialize(JsonElement json, Type type,
                 JsonDeserializationContext ctx) {
-            return LocalDateTime.parse(json.getAsString(), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            String text = json.getAsString();
+            try {
+                return OffsetDateTime.parse(text)
+                        .atZoneSameInstant(ZoneId.systemDefault())
+                        .toLocalDateTime();
+            } catch (DateTimeParseException e) {
+                return LocalDateTime.parse(text, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            }
         }
     }
 

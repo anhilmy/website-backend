@@ -44,17 +44,17 @@ public class MenuItemService {
     }
 
     public MenuItem create(MenuItemRequest request) {
-        String name = InputValidator.requireNonBlank(request.name, "name");
+        String name = InputValidator.requireMaxLength(request.name, "name", 255);
         BigDecimal price = InputValidator.requirePositive(request.price, "price");
         MenuCategory category = resolveCategory(request.categoryId);
 
         MenuItem item = new MenuItem();
         item.setName(name);
-        item.setDescription(InputValidator.sanitize(request.description));
+        item.setDescription(InputValidator.sanitizeMax(request.description, "description", 255));
         item.setPrice(price);
         item.setMenuCategory(category);
         item.setAvailable(request.available == null || request.available);
-        item.setImageUrl(InputValidator.sanitize(request.imageUrl));
+        item.setImageUrl(InputValidator.sanitizeMax(request.imageUrl, "imageUrl", 255));
         item.setCreatedAt(LocalDateTime.now());
         item.setUpdatedAt(LocalDateTime.now());
         return menuItemRepository.save(item);
@@ -63,10 +63,10 @@ public class MenuItemService {
     public MenuItem update(Long id, MenuItemRequest request) {
         MenuItem item = getById(id);
         if (request.name != null) {
-            item.setName(InputValidator.requireNonBlank(request.name, "name"));
+            item.setName(InputValidator.requireMaxLength(request.name, "name", 255));
         }
         if (request.description != null) {
-            item.setDescription(InputValidator.sanitize(request.description));
+            item.setDescription(InputValidator.sanitizeMax(request.description, "description", 255));
         }
         if (request.price != null) {
             item.setPrice(InputValidator.requirePositive(request.price, "price"));
@@ -78,7 +78,7 @@ public class MenuItemService {
             item.setAvailable(request.available);
         }
         if (request.imageUrl != null) {
-            item.setImageUrl(InputValidator.sanitize(request.imageUrl));
+            item.setImageUrl(InputValidator.sanitizeMax(request.imageUrl, "imageUrl", 255));
         }
         item.setUpdatedAt(LocalDateTime.now());
         return menuItemRepository.update(item);

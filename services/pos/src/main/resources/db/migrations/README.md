@@ -21,6 +21,10 @@ migration tool; the recommended upgrade path (Flyway/Liquibase) is noted in
 | V1 | baseline bookkeeping (`schema_migrations`) |
 | V2 | menu-category parent + lookup indexes |
 | V3 | `dining_tables` (floor plan: name, area, status, current bill, join host, version) |
+| V4 | `payment_methods` + `transactions.payment_reference` |
+| V5 | `charge_templates`, `charges`, persisted `subtotal_amount`/`charges_amount` |
+| V6 | line voids, `refunds`, `refunded_amount`, amendment links |
+| V7 | optimistic `version` on bills + unique `amended_from_id` |
 
 ## Applying (manual)
 

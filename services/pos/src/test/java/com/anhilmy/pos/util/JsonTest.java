@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -69,5 +70,16 @@ class JsonTest {
         assertTrue(json.contains("Cake"));
         // The back-reference is skipped, so no cycle.
         assertFalse(json.contains("\"transaction\""));
+    }
+
+    @Test
+    void localDateTimeSerializesWithZoneOffset() {
+        Transaction tx = new Transaction();
+        tx.setCreatedAt(LocalDateTime.of(2026, 10, 23, 10, 0));
+
+        String json = Json.gson().toJson(tx);
+
+        assertTrue(json.matches("(?s).*2026-10-23T10:00:00(\\+|Z|-).*"),
+                "timestamp should carry a zone offset: " + json);
     }
 }
