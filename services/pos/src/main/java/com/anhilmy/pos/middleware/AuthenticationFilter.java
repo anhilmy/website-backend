@@ -32,7 +32,9 @@ public final class AuthenticationFilter {
             "POST /api/v1/auth/login",
             "GET /api/v1/menu/categories",
             "GET /api/v1/menu/items",
-            "GET /api/v1/menu/items/:id"));
+            "GET /api/v1/menu/items/:id",
+            "GET /api/v1/payment-methods",
+            "GET /api/v1/charge-templates"));
 
     /**
      * Known API surface prefixes. Requests outside these are left to Spark's not-found handler
@@ -45,6 +47,9 @@ public final class AuthenticationFilter {
             "/api/v1/categories",
             "/api/v1/items",
             "/api/v1/orders",
+            "/api/v1/payment-methods",
+            "/api/v1/charge-templates",
+            "/api/v1/reports",
             "/api/v1/tables",
             "/api/v1/users");
 

@@ -6,12 +6,15 @@ import org.slf4j.LoggerFactory;
 import com.anhilmy.pos.config.ConfigManager;
 import com.anhilmy.pos.controller.AuthController;
 import com.anhilmy.pos.controller.CategoryController;
+import com.anhilmy.pos.controller.ChargeTemplateController;
 import com.anhilmy.pos.controller.DiningTableController;
 import com.anhilmy.pos.controller.DocsController;
 import com.anhilmy.pos.controller.HealthCheckController;
 import com.anhilmy.pos.controller.MenuController;
 import com.anhilmy.pos.controller.MenuItemController;
 import com.anhilmy.pos.controller.OrderController;
+import com.anhilmy.pos.controller.PaymentMethodController;
+import com.anhilmy.pos.controller.ReportController;
 import com.anhilmy.pos.controller.UserController;
 import com.anhilmy.pos.db.DataSeeder;
 import com.anhilmy.pos.db.DbManager;
@@ -129,6 +132,14 @@ public class App {
         exception(org.hibernate.exception.ConstraintViolationException.class,
                 (e, req, res) -> conflict(res, "That value conflicts with an existing record"));
 
+        // Concurrent writes lose cleanly instead of surfacing as a 404/500.
+        exception(org.hibernate.exception.LockAcquisitionException.class,
+                (e, req, res) -> conflict(res, "The record is busy; retry the request"));
+        exception(jakarta.persistence.PessimisticLockException.class,
+                (e, req, res) -> conflict(res, "The record is busy; retry the request"));
+        exception(org.hibernate.JDBCException.class,
+                (e, req, res) -> unavailable(res, "The database is temporarily unavailable; retry"));
+
         exception(Exception.class, (e, req, res) -> {
             DbManager.rollbackAndClose();
             String correlationId = req.attribute(RequestResponseLogger.ATTR_CORRELATION_ID);
@@ -154,6 +165,13 @@ public class App {
         return Json.gson().toJson(ApiResponse.error("CONFLICT", message));
     }
 
+    private static Object unavailable(spark.Response res, String message) {
+        DbManager.rollbackAndClose();
+        res.type("application/json");
+        res.status(503);
+        return Json.gson().toJson(ApiResponse.error("SERVICE_UNAVAILABLE", message));
+    }
+
     private static void registerRoutes() {
         // Root-level health alias used by Docker healthchecks.
         get("/health", (req, res) -> {
@@ -171,7 +189,11 @@ public class App {
 
             CategoryController.registerRoutes();
             MenuItemController.registerRoutes();
+            // Before OrderController so /orders/export is not captured by /orders/:id.
+            ReportController.registerRoutes();
             OrderController.registerRoutes();
+            PaymentMethodController.registerRoutes();
+            ChargeTemplateController.registerRoutes();
             DiningTableController.registerRoutes();
             UserController.registerRoutes();
         });

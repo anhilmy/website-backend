@@ -112,6 +112,14 @@ send `Authorization: Bearer <token>`. Interactive docs at **`/docs`** (spec: `/o
 | Categories | `GET/POST /categories`, `GET/PUT/DELETE /categories/{id}` | bearer |
 | Items | `GET/POST /items`, `GET/PUT/DELETE /items/{id}` | bearer |
 | Orders | `GET/POST /orders`, `GET /orders/{id}`, `POST /orders/{id}/items`, `PUT/DELETE /orders/{id}/items/{itemId}`, `POST /orders/{id}/complete`, `POST /orders/{id}/cancel` | bearer |
+| Payment methods | `GET /payment-methods` (public) | public |
+| Payment methods | `POST /payment-methods`, `PUT/DELETE /payment-methods/{id}` | bearer, MANAGER |
+| Charge templates | `GET /charge-templates` (public) | public |
+| Charge templates | `POST /charge-templates`, `PUT/DELETE /charge-templates/{id}` | bearer, MANAGER |
+| Voids | `POST /orders/{id}/items/{itemId}/void` | bearer (draft access) |
+| Refunds | `POST /orders/{id}/refunds` | bearer, MANAGER |
+| Amend | `POST /orders/{id}/amend` | bearer (bill access) |
+| Reports | `GET /reports/payments`, `GET /orders/export?format=csv` | bearer, MANAGER |
 | Tables | `GET/POST /tables`, `GET/PUT/DELETE /tables/{id}`, `PATCH /tables/{id}/status`, `POST /tables/{id}/open`, `/assign`, `/release`, `/join`, `/unjoin` | bearer (layout changes: MANAGER) |
 | Users | `GET/POST /users`, `GET /users/{id}`, `PUT /users/{id}/password` | bearer, MANAGER (password: self) |
 
@@ -153,11 +161,15 @@ also frees its table automatically, so the floor never keeps a finished bill on 
 | Auth (JWT, BCrypt, logout/blacklist, role checks) | done |
 | Menu categories + items (CRUD, search/filter, soft delete) | done |
 | Orders (draft, items, complete, cancel, totals, immutability) | done |
+| Payment methods (seeded catalogue, active-set validation, optional reference) | done |
+| Charges (templates copied per order, ordered evaluation, persisted subtotal) | done |
+| Voids, append-only refunds, amend-with-lineage | done |
+| Reconciliation report + bill-level CSV export | done |
 | Tables (floor plan, occupancy, open/assign/release, join/unjoin) | done |
 | Dual DB (SQLite/PostgreSQL), pooling, migrations | done |
 | Error handling, validation, response envelope, pagination | done |
 | Logging (console/file/Kafka, correlation IDs, audit) | done |
 | OpenAPI spec + Swagger UI | done |
-| Tests (unit + integration) | done (46 tests; no HTTP-controller/coverage gate) |
+| Tests (unit + integration) | done (89 tests; no HTTP-controller/coverage gate) |
 | CI (build + test + package) | done — `website-backend/.github/workflows/pos-ci.yml` |
 | Redis caching, email, inventory, loyalty, reporting, metrics | not started (optional phase 13) |

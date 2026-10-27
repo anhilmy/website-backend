@@ -15,6 +15,9 @@ tags:
   - name: Categories
   - name: Items
   - name: Orders
+  - name: Payment Methods
+  - name: Charges
+  - name: Reports
   - name: Tables
   - name: Users
 
@@ -193,11 +196,11 @@ paths:
       tags: [Orders]
       summary: List orders
       parameters:
-        - { name: status, in: query, schema: { type: string, enum: [DRAFT, IN_PROGRESS, COMPLETED, CANCELLED] } }
+        - { name: status, in: query, schema: { type: string, enum: [DRAFT, IN_PROGRESS, COMPLETED, CANCELLED, PARTIALLY_REFUNDED, REFUNDED, AMENDED] } }
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
-        - { name: page, in: query, schema: { type: integer, default: 1 } }
-        - { name: size, in: query, schema: { type: integer, default: 20 } }
+        - { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
+        - { name: size, in: query, schema: { type: integer, default: 20, minimum: 1, maximum: 100 } }
       responses:
         '200': { description: Paged orders }
     post:
@@ -281,6 +284,163 @@ paths:
       responses:
         '200': { description: Cancelled order }
         '409': { description: Order cannot be cancelled }
+  /api/v1/orders/{id}/items/{itemId}/void:
+    post:
+      tags: [Orders]
+      summary: Void a draft line (keeps it on the bill for audit)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - { name: itemId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoidItemRequest'
+      responses:
+        '200': { description: Updated order }
+        '409': { description: Line already voided or order not draft }
+  /api/v1/orders/{id}/refunds:
+    post:
+      tags: [Orders]
+      summary: Refund a settled line (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '200': { description: Updated order with refunds }
+        '403': { description: Forbidden }
+        '409': { description: Quantity/status invalid }
+  /api/v1/orders/{id}/amend:
+    post:
+      tags: [Orders]
+      summary: Re-open a cancelled bill as a linked draft
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '201': { description: New draft bill }
+        '409': { description: Bill is not cancelled or already amended }
+  /api/v1/reports/payments:
+    get:
+      tags: [Reports]
+      summary: Reconciled totals by payment method (manager only)
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200': { description: Payment report }
+        '403': { description: Forbidden }
+  /api/v1/orders/export:
+    get:
+      tags: [Reports]
+      summary: Bill-level CSV export (manager only)
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: format, in: query, schema: { type: string, enum: [csv] } }
+      responses:
+        '200':
+          description: CSV attachment
+          content:
+            text/csv:
+              schema: { type: string }
+        '403': { description: Forbidden }
+  /api/v1/payment-methods:
+    get:
+      tags: [Payment Methods]
+      summary: List payment methods (public; use active=true for the till)
+      security: []
+      parameters:
+        - { name: active, in: query, schema: { type: boolean } }
+      responses:
+        '200': { description: Payment methods }
+    post:
+      tags: [Payment Methods]
+      summary: Create a payment method (manager only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethodRequest'
+      responses:
+        '201': { description: Created }
+        '403': { description: Forbidden }
+        '409': { description: Code already exists }
+  /api/v1/payment-methods/{id}:
+    put:
+      tags: [Payment Methods]
+      summary: Update a payment method (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentMethodRequest'
+      responses:
+        '200': { description: Updated }
+        '403': { description: Forbidden }
+    delete:
+      tags: [Payment Methods]
+      summary: Deactivate a payment method (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Deactivated }
+        '403': { description: Forbidden }
+  /api/v1/charge-templates:
+    get:
+      tags: [Charges]
+      summary: List reusable charge templates (public; use active=true for new orders)
+      security: []
+      parameters:
+        - { name: active, in: query, schema: { type: boolean } }
+      responses:
+        '200': { description: Charge templates }
+    post:
+      tags: [Charges]
+      summary: Create a charge template (manager only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeTemplateRequest'
+      responses:
+        '201': { description: Created }
+        '403': { description: Forbidden }
+        '409': { description: Code already exists }
+  /api/v1/charge-templates/{id}:
+    put:
+      tags: [Charges]
+      summary: Update a charge template (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChargeTemplateRequest'
+      responses:
+        '200': { description: Updated }
+        '403': { description: Forbidden }
+    delete:
+      tags: [Charges]
+      summary: Deactivate a charge template (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Deactivated }
+        '403': { description: Forbidden }
   /api/v1/users:
     get:
       tags: [Users]
@@ -502,8 +662,111 @@ components:
       type: object
       required: [paymentMethod, paymentAmount]
       properties:
-        paymentMethod: { type: string, enum: [CASH, CARD, DIGITAL] }
+        paymentMethod:
+          type: string
+          description: Must be an active payment-method code.
+          example: CASH
         paymentAmount: { type: number }
+        paymentReference: { type: string, nullable: true }
+    PaymentMethodRequest:
+      type: object
+      required: [code, label]
+      properties:
+        code: { type: string, pattern: '^[A-Za-z0-9_]{2,32}$' }
+        label: { type: string, maxLength: 64 }
+        active: { type: boolean }
+        isCash: { type: boolean }
+        requiresReference: { type: boolean }
+        sortOrder: { type: integer }
+    PaymentMethod:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        label: { type: string }
+        active: { type: boolean }
+        isCash: { type: boolean }
+        requiresReference: { type: boolean }
+        sortOrder: { type: integer }
+    ChargeTemplateRequest:
+      type: object
+      required: [code, label]
+      properties:
+        code: { type: string, pattern: '^[A-Za-z0-9_]{2,32}$' }
+        label: { type: string, maxLength: 64 }
+        calcType: { type: string, enum: [PERCENTAGE, FIXED] }
+        value:
+          type: number
+          description: 'PERCENTAGE is a fraction 0-1 (0.10 = 10%); FIXED is an absolute amount'
+        basis: { type: string, enum: [SUBTOTAL, RUNNING_TOTAL] }
+        sortOrder: { type: integer }
+        taxable: { type: boolean, description: 'Feeds later RUNNING_TOTAL bases' }
+        isTax: { type: boolean, description: 'Populates the bill taxAmount' }
+        active: { type: boolean }
+    ChargeTemplate:
+      allOf:
+        - $ref: '#/components/schemas/ChargeTemplateRequest'
+        - type: object
+          properties:
+            id: { type: integer }
+    Charge:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        label: { type: string }
+        calcType: { type: string, enum: [PERCENTAGE, FIXED] }
+        value: { type: number }
+        basis: { type: string, enum: [SUBTOTAL, RUNNING_TOTAL] }
+        sortOrder: { type: integer }
+        taxable: { type: boolean }
+        isTax: { type: boolean }
+        computedAmount: { type: number }
+    VoidItemRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, maxLength: 255 }
+    RefundRequest:
+      type: object
+      required: [transactionItemId, quantity, reason]
+      properties:
+        transactionItemId: { type: integer }
+        quantity: { type: integer, minimum: 1 }
+        reason: { type: string, maxLength: 255 }
+        paymentMethod: { type: string, nullable: true }
+    Refund:
+      type: object
+      properties:
+        id: { type: integer }
+        transactionItemId: { type: integer }
+        quantity: { type: integer }
+        amount: { type: number }
+        reason: { type: string }
+        paymentMethod: { type: string }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+    PaymentSummary:
+      type: object
+      properties:
+        method: { type: string }
+        count:
+          type: integer
+          description: Settled bills sold with this method (0 for refund-only rows)
+        gross: { type: number }
+        refunded: { type: number }
+        net: { type: number }
+    PaymentReport:
+      type: object
+      properties:
+        from: { type: string, format: date-time, nullable: true }
+        to: { type: string, format: date-time, nullable: true }
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentSummary'
+        totals:
+          $ref: '#/components/schemas/PaymentSummary'
     UserCreateRequest:
       type: object
       required: [username, password, role]
