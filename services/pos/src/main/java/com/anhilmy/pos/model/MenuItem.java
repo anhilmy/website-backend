@@ -43,6 +43,13 @@ public class MenuItem {
     @Column(name = "image_url")
     private String imageUrl;
 
+    /**
+     * Derived flag so clients can keep the one-tap fast path for plain items. Null when the item
+     * is embedded in another payload (Gson omits nulls) instead of claiming "false".
+     */
+    @jakarta.persistence.Transient
+    private Boolean hasModifiers;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -106,6 +113,14 @@ public class MenuItem {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public Boolean getHasModifiers() {
+        return hasModifiers;
+    }
+
+    public void setHasModifiers(Boolean hasModifiers) {
+        this.hasModifiers = hasModifiers;
     }
 
     public LocalDateTime getCreatedAt() {

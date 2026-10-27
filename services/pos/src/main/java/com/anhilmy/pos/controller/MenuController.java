@@ -3,6 +3,7 @@ package com.anhilmy.pos.controller;
 import com.anhilmy.pos.exception.ValidationException;
 import com.anhilmy.pos.service.MenuCategoryService;
 import com.anhilmy.pos.service.MenuItemService;
+import com.anhilmy.pos.service.ModifierService;
 import com.anhilmy.pos.util.InputValidator;
 import com.anhilmy.pos.util.Responder;
 import com.anhilmy.pos.util.Routes;
@@ -14,6 +15,7 @@ public class MenuController {
 
     private static final MenuCategoryService categoryService = new MenuCategoryService();
     private static final MenuItemService itemService = new MenuItemService();
+    private static final ModifierService modifierService = new ModifierService();
 
     public static void registerRoutes() {
         get("/menu/categories", Routes.wrap((req, res) ->
@@ -38,6 +40,11 @@ public class MenuController {
         get("/menu/items/:id", Routes.wrap((req, res) -> {
             Long id = InputValidator.parseLongId(req.params(":id"), "id");
             return Responder.ok(res, itemService.getById(id));
+        }));
+
+        get("/menu/items/:id/modifiers", Routes.wrap((req, res) -> {
+            Long id = InputValidator.parseLongId(req.params(":id"), "id");
+            return Responder.ok(res, modifierService.listForItem(id));
         }));
     }
 }

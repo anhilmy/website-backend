@@ -25,6 +25,7 @@ migration tool; the recommended upgrade path (Flyway/Liquibase) is noted in
 | V5 | `charge_templates`, `charges`, persisted `subtotal_amount`/`charges_amount` |
 | V6 | line voids, `refunds`, `refunded_amount`, amendment links |
 | V7 | optimistic `version` on bills + unique `amended_from_id` |
+| V8 | item modifier groups/options, line `note`, `transaction_item_modifiers` snapshots |
 
 ## Applying (manual)
 
@@ -44,3 +45,8 @@ psql -U <user> -d <db> -f V3__dining_tables_postgres.sql
 
 Alternatively apply the full baseline directly:
 `sqlite3 pos_dev.db < ../schema_sqlite.sql` / `psql -f ../schema_postgres.sql`.
+
+> **Dev databases are Hibernate-managed.** With `db.hbm2ddl=update` the app has already
+> created new columns/tables before you get a chance to run the matching `V*` script, so the
+> SQLite `ALTER TABLE ... ADD COLUMN` will fail with `duplicate column name`. Apply migrations
+> only to databases whose schema was created from the baseline and then upgraded by hand.

@@ -12,6 +12,7 @@ import com.anhilmy.pos.controller.DocsController;
 import com.anhilmy.pos.controller.HealthCheckController;
 import com.anhilmy.pos.controller.MenuController;
 import com.anhilmy.pos.controller.MenuItemController;
+import com.anhilmy.pos.controller.ModifierController;
 import com.anhilmy.pos.controller.OrderController;
 import com.anhilmy.pos.controller.PaymentMethodController;
 import com.anhilmy.pos.controller.ReportController;
@@ -189,6 +190,7 @@ public class App {
 
             CategoryController.registerRoutes();
             MenuItemController.registerRoutes();
+            ModifierController.registerRoutes();
             // Before OrderController so /orders/export is not captured by /orders/:id.
             ReportController.registerRoutes();
             OrderController.registerRoutes();

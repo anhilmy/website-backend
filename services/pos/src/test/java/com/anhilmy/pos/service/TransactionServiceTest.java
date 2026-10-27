@@ -22,12 +22,18 @@ import com.anhilmy.pos.model.ChargeBasis;
 import com.anhilmy.pos.model.ChargeCalcType;
 import com.anhilmy.pos.model.ChargeTemplate;
 import com.anhilmy.pos.model.MenuItem;
+import com.anhilmy.pos.model.ModifierGroup;
+import com.anhilmy.pos.model.ModifierOption;
 import com.anhilmy.pos.model.PaymentMethod;
+import com.anhilmy.pos.model.SelectionType;
 import com.anhilmy.pos.model.Transaction;
 import com.anhilmy.pos.model.TransactionItem;
+import com.anhilmy.pos.model.TransactionItemModifier;
 import com.anhilmy.pos.model.User;
 import com.anhilmy.pos.repository.ChargeTemplateRepository;
 import com.anhilmy.pos.repository.MenuItemRepository;
+import com.anhilmy.pos.repository.ModifierGroupRepository;
+import com.anhilmy.pos.repository.ModifierOptionRepository;
 import com.anhilmy.pos.repository.PaymentMethodRepository;
 import com.anhilmy.pos.repository.TransactionRepository;
 import com.anhilmy.pos.repository.UserRepository;
@@ -45,13 +51,18 @@ class TransactionServiceTest {
     private PaymentMethodRepository paymentMethodRepository;
     @Mock
     private ChargeTemplateRepository chargeTemplateRepository;
+    @Mock
+    private ModifierGroupRepository modifierGroupRepository;
+    @Mock
+    private ModifierOptionRepository modifierOptionRepository;
 
     private TransactionService service;
 
     @BeforeEach
     void setUp() {
         service = new TransactionService(transactionRepository, menuItemRepository,
-                userRepository, paymentMethodRepository, chargeTemplateRepository);
+                userRepository, paymentMethodRepository, chargeTemplateRepository,
+                modifierGroupRepository, modifierOptionRepository);
         lenient().when(paymentMethodRepository.findByCode("CASH"))
                 .thenReturn(Optional.of(paymentMethod("CASH", true, false)));
         lenient().when(paymentMethodRepository.findByCode("CARD"))
@@ -80,6 +91,36 @@ class TransactionServiceTest {
         line.setUnitPrice(new BigDecimal(unitPrice));
         line.setTotalPrice(new BigDecimal(unitPrice).multiply(BigDecimal.valueOf(quantity)));
         return line;
+    }
+
+    private ModifierGroup group(long id, String name, SelectionType type, boolean required,
+            int min, int max) {
+        ModifierGroup group = new ModifierGroup();
+        group.setId(id);
+        group.setName(name);
+        group.setSelectionType(type);
+        group.setRequired(required);
+        group.setMinSelect(min);
+        group.setMaxSelect(max);
+        group.setSortOrder(0);
+        group.setActive(true);
+        MenuItem item = new MenuItem();
+        item.setId(10L);
+        group.setMenuItem(item);
+        return group;
+    }
+
+    private ModifierOption option(long id, ModifierGroup group, String name, String priceDelta,
+            boolean available) {
+        ModifierOption option = new ModifierOption();
+        option.setId(id);
+        option.setGroup(group);
+        option.setName(name);
+        option.setPriceDelta(new BigDecimal(priceDelta));
+        option.setIsDefault(false);
+        option.setAvailable(available);
+        option.setSortOrder(0);
+        return option;
     }
 
     private PaymentMethod paymentMethod(String code, boolean active, boolean requiresReference) {
@@ -480,6 +521,239 @@ class TransactionServiceTest {
         assertEquals(Transaction.Status.REFUNDED, tx.getStatus());
         assertEquals(0, new BigDecimal("33.34").compareTo(
                 tx.getRefunds().get(2).getAmount()));
+    }
+
+    @Test
+    void addItemPricesSelectedOptionsPerUnitAndSnapshotsThem() {
+        Transaction tx = draft(1L);
+        ModifierGroup group = group(5L, "Extras", SelectionType.MULTI, false, 0, 3);
+        ModifierOption extra = option(10L, group, "Extra shot", "5000", true);
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(menuItemRepository.findById(10L)).thenReturn(Optional.of(menuItem(10L, "18000.00", true)));
+        when(modifierGroupRepository.findByMenuItemId(10L, true)).thenReturn(List.of(group));
+        when(modifierOptionRepository.findById(10L)).thenReturn(Optional.of(extra));
+        lenient().when(transactionRepository.update(tx)).thenReturn(tx);
+
+        service.addItem(1L, 10L, 2, List.of(10L), null);
+
+        TransactionItem line = tx.getItems().get(0);
+        assertEquals(0, new BigDecimal("23000.00").compareTo(line.getUnitPrice()));
+        assertEquals(0, new BigDecimal("46000.00").compareTo(line.getTotalPrice()));
+        assertEquals(1, line.getModifiers().size());
+        assertEquals("Extra shot", line.getModifiers().get(0).getOptionName());
+        assertEquals("Extras", line.getModifiers().get(0).getGroupName());
+        assertEquals(0, new BigDecimal("5000.00").compareTo(
+                line.getModifiers().get(0).getPriceDelta()));
+    }
+
+    @Test
+    void addItemMergesOnlyMatchingOptionsAndNote() {
+        Transaction tx = draft(1L);
+        ModifierGroup group = group(5L, "Extras", SelectionType.MULTI, false, 0, 3);
+        ModifierOption extraShot = option(10L, group, "Extra shot", "5000", true);
+        ModifierOption oatMilk = option(11L, group, "Oat milk", "8000", true);
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(menuItemRepository.findById(10L)).thenReturn(Optional.of(menuItem(10L, "18000.00", true)));
+        when(modifierGroupRepository.findByMenuItemId(10L, true)).thenReturn(List.of(group));
+        when(modifierOptionRepository.findById(10L)).thenReturn(Optional.of(extraShot));
+        when(modifierOptionRepository.findById(11L)).thenReturn(Optional.of(oatMilk));
+        lenient().when(transactionRepository.update(tx)).thenReturn(tx);
+
+        service.addItem(1L, 10L, 1, List.of(10L), "no sugar");
+        service.addItem(1L, 10L, 1, List.of(10L), "no sugar");
+        assertEquals(1, tx.getItems().size());
+        assertEquals(2, tx.getItems().get(0).getQuantity());
+
+        service.addItem(1L, 10L, 1, List.of(11L), "no sugar");
+        assertEquals(2, tx.getItems().size());
+
+        service.addItem(1L, 10L, 1, List.of(10L), "extra hot");
+        assertEquals(3, tx.getItems().size());
+    }
+
+    @Test
+    void addItemRequiresRequiredGroupSelection() {
+        Transaction tx = draft(1L);
+        ModifierGroup temperature = group(5L, "Temperature", SelectionType.SINGLE, true, 1, 1);
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(menuItemRepository.findById(10L)).thenReturn(Optional.of(menuItem(10L, "18000.00", true)));
+        when(modifierGroupRepository.findByMenuItemId(10L, true))
+                .thenReturn(List.of(temperature));
+
+        assertThrows(BusinessRuleException.class,
+                () -> service.addItem(1L, 10L, 1, null, null));
+    }
+
+    @Test
+    void addItemRejectsDuplicateAndUnavailableOptions() {
+        Transaction tx = draft(1L);
+        ModifierGroup group = group(5L, "Extras", SelectionType.MULTI, false, 0, 3);
+        ModifierOption soldOut = option(10L, group, "Sold out", "1000", false);
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(menuItemRepository.findById(10L)).thenReturn(Optional.of(menuItem(10L, "18000.00", true)));
+        when(modifierGroupRepository.findByMenuItemId(10L, true)).thenReturn(List.of(group));
+        when(modifierOptionRepository.findById(10L)).thenReturn(Optional.of(soldOut));
+
+        assertThrows(com.anhilmy.pos.exception.ValidationException.class,
+                () -> service.addItem(1L, 10L, 1, List.of(10L, 10L), null));
+        assertThrows(BusinessRuleException.class,
+                () -> service.addItem(1L, 10L, 1, List.of(10L), null));
+    }
+
+    @Test
+    void addItemRejectsOptionFromAnotherItem() {
+        Transaction tx = draft(1L);
+        ModifierGroup ownGroup = group(5L, "Extras", SelectionType.MULTI, false, 0, 3);
+        ModifierGroup otherGroup = group(6L, "Other", SelectionType.MULTI, false, 0, 3);
+        ModifierOption otherOption = option(20L, otherGroup, "Other option", "0", true);
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(menuItemRepository.findById(10L)).thenReturn(Optional.of(menuItem(10L, "18000.00", true)));
+        when(modifierGroupRepository.findByMenuItemId(10L, true)).thenReturn(List.of(ownGroup));
+        when(modifierOptionRepository.findById(20L)).thenReturn(Optional.of(otherOption));
+
+        assertThrows(BusinessRuleException.class,
+                () -> service.addItem(1L, 10L, 1, List.of(20L), null));
+    }
+
+    @Test
+    void addItemRejectsNegativeEffectivePrice() {
+        Transaction tx = draft(1L);
+        ModifierGroup group = group(5L, "Discount", SelectionType.MULTI, false, 0, 1);
+        ModifierOption heavyDiscount = option(10L, group, "Heavy discount", "-5000", true);
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(menuItemRepository.findById(10L)).thenReturn(Optional.of(menuItem(10L, "1000.00", true)));
+        when(modifierGroupRepository.findByMenuItemId(10L, true)).thenReturn(List.of(group));
+        when(modifierOptionRepository.findById(10L)).thenReturn(Optional.of(heavyDiscount));
+
+        assertThrows(BusinessRuleException.class,
+                () -> service.addItem(1L, 10L, 1, List.of(10L), null));
+    }
+
+    @Test
+    void updateItemReplacesOptionsAndRecomputesUnitPrice() {
+        Transaction tx = draft(1L);
+        TransactionItem line = line("18000.00", 1);
+        line.setId(20L);
+        tx.addItem(line);
+        ModifierGroup group = group(5L, "Extras", SelectionType.MULTI, false, 0, 3);
+        ModifierOption extra = option(10L, group, "Extra shot", "5000", true);
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(modifierGroupRepository.findByMenuItemId(10L, true)).thenReturn(List.of(group));
+        when(modifierOptionRepository.findById(10L)).thenReturn(Optional.of(extra));
+        lenient().when(transactionRepository.update(tx)).thenReturn(tx);
+
+        service.updateItem(1L, 20L, null, List.of(10L), "no sugar");
+
+        assertEquals(0, new BigDecimal("23000.00").compareTo(line.getUnitPrice()));
+        assertEquals(1, line.getModifiers().size());
+        assertEquals("no sugar", line.getNote());
+    }
+
+    @Test
+    void addItemMergeRepricesAtTheCurrentOptionPrice() {
+        Transaction tx = draft(1L);
+        ModifierGroup group = group(5L, "Extras", SelectionType.MULTI, false, 0, 3);
+        ModifierOption extra = option(10L, group, "Extra shot", "5000", true);
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(menuItemRepository.findById(10L)).thenReturn(Optional.of(menuItem(10L, "18000.00", true)));
+        when(modifierGroupRepository.findByMenuItemId(10L, true)).thenReturn(List.of(group));
+        when(modifierOptionRepository.findById(10L)).thenReturn(Optional.of(extra));
+        lenient().when(transactionRepository.update(tx)).thenReturn(tx);
+
+        service.addItem(1L, 10L, 1, List.of(10L), null);
+        extra.setPriceDelta(new BigDecimal("9000.00"));
+        service.addItem(1L, 10L, 1, List.of(10L), null);
+
+        TransactionItem line = tx.getItems().get(0);
+        assertEquals(2, line.getQuantity());
+        assertEquals(0, new BigDecimal("27000.00").compareTo(line.getUnitPrice()));
+        assertEquals(0, new BigDecimal("54000.00").compareTo(line.getTotalPrice()));
+        assertEquals(0, new BigDecimal("9000.00").compareTo(
+                line.getModifiers().get(0).getPriceDelta()));
+    }
+
+    @Test
+    void updateItemRejectsADuplicateLineIdentity() {
+        Transaction tx = draft(1L);
+        ModifierGroup temperature = group(5L, "Temperature", SelectionType.SINGLE, true, 1, 1);
+        ModifierOption hot = option(1L, temperature, "Hot", "0", true);
+        ModifierOption iced = option(2L, temperature, "Iced", "0", true);
+
+        TransactionItem hotLine = line("18000.00", 1);
+        hotLine.setId(10L);
+        hotLine.setNote("no sugar");
+        hotLine.addModifier(snapshot(hot, 0));
+        TransactionItem icedLine = line("18000.00", 1);
+        icedLine.setId(11L);
+        icedLine.setNote("no sugar");
+        icedLine.addModifier(snapshot(iced, 0));
+        tx.addItem(hotLine);
+        tx.addItem(icedLine);
+
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(modifierGroupRepository.findByMenuItemId(10L, true))
+                .thenReturn(List.of(temperature));
+        when(modifierOptionRepository.findById(1L)).thenReturn(Optional.of(hot));
+
+        assertThrows(BusinessRuleException.class,
+                () -> service.updateItem(1L, 11L, null, List.of(1L), null));
+    }
+
+    @Test
+    void updateItemLeavesOptionsWhenNullAndClearsOnEmptyList() {
+        Transaction tx = draft(1L);
+        ModifierGroup group = group(5L, "Extras", SelectionType.MULTI, false, 0, 3);
+        ModifierOption extra = option(10L, group, "Extra shot", "5000", true);
+        TransactionItem line = line("23000.00", 1);
+        line.setId(20L);
+        line.addModifier(snapshot(extra, 0));
+        tx.addItem(line);
+
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(modifierGroupRepository.findByMenuItemId(10L, true)).thenReturn(List.of(group));
+        lenient().when(transactionRepository.update(tx)).thenReturn(tx);
+
+        service.updateItem(1L, 20L, null, null, "still hot");
+        assertEquals(1, line.getModifiers().size());
+        assertEquals("still hot", line.getNote());
+
+        service.updateItem(1L, 20L, null, List.of(), null);
+        assertEquals(0, line.getModifiers().size());
+        assertEquals(0, new BigDecimal("23000.00").compareTo(line.getUnitPrice()));
+        assertEquals("still hot", line.getNote());
+    }
+
+    @Test
+    void addItemNeverMergesIntoALineWhoseOptionWasDeleted() {
+        Transaction tx = draft(1L);
+        TransactionItem existing = line("18000.00", 1);
+        existing.setId(20L);
+        TransactionItemModifier orphaned = new TransactionItemModifier();
+        orphaned.setModifierOptionId(null);
+        orphaned.setGroupName("Temperature");
+        orphaned.setOptionName("Hot");
+        orphaned.setPriceDelta(BigDecimal.ZERO);
+        orphaned.setSortOrder(0);
+        existing.addModifier(orphaned);
+        tx.addItem(existing);
+
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        when(menuItemRepository.findById(10L)).thenReturn(Optional.of(menuItem(10L, "18000.00", true)));
+        lenient().when(transactionRepository.update(tx)).thenReturn(tx);
+
+        service.addItem(1L, 10L, 1, null, null);
+
+        assertEquals(2, tx.getItems().size());
+    }
+
+    private TransactionItemModifier snapshot(ModifierOption option, int sortOrder) {
+        TransactionItemModifier snapshot = new TransactionItemModifier();
+        snapshot.setModifierOptionId(option.getId());
+        snapshot.setGroupName(option.getGroup().getName());
+        snapshot.setOptionName(option.getName());
+        snapshot.setPriceDelta(option.getPriceDelta());
+        snapshot.setSortOrder(sortOrder);
+        return snapshot;
     }
 
     private Transaction settledBill() {

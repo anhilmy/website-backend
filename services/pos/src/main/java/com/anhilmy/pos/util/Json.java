@@ -39,6 +39,8 @@ public final class Json {
             "menuItems", // MenuCategory -> items (cycle via MenuItem.menuCategory)
             "children", // MenuCategory self-hierarchy cycle
             "transaction", // TransactionItem -> Transaction back-reference (cycle)
+            "transactionItem", // TransactionItemModifier -> line back-reference (cycle)
+            "group", // ModifierOption -> ModifierGroup back-reference (cycle)
             "joinedTo" // DiningTable self-reference (cycle risk); use TableResponse instead
     ));
 

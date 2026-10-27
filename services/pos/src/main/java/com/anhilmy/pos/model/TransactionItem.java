@@ -2,7 +2,10 @@ package com.anhilmy.pos.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,6 +15,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -43,14 +48,21 @@ public class TransactionItem {
         private Integer quantity;
 
         @NotNull
-        @Positive
         @Column(name = "unit_price", nullable = false)
         private BigDecimal unitPrice;
 
         @NotNull
-        @Positive
         @Column(name = "total_price", nullable = false)
         private BigDecimal totalPrice;
+
+        /** Free-text customer request for this line ("no sugar"). */
+        @Column(length = 255)
+        private String note;
+
+        /** Snapshotted option selections; copied text/price survives menu edits. */
+        @OrderBy("sortOrder ASC, id ASC")
+        @OneToMany(mappedBy = "transactionItem", cascade = CascadeType.ALL, orphanRemoval = true)
+        private List<TransactionItemModifier> modifiers = new ArrayList<>();
 
         @NotNull
         @Enumerated(EnumType.STRING)
@@ -67,6 +79,15 @@ public class TransactionItem {
         private LocalDateTime voidedAt;
 
         public TransactionItem() {}
+
+        public void addModifier(TransactionItemModifier modifier) {
+                modifier.setTransactionItem(this);
+                this.modifiers.add(modifier);
+        }
+
+        public void clearModifiers() {
+                this.modifiers.clear();
+        }
 
         // Getters and setters
         public Long getId() {
@@ -115,6 +136,22 @@ public class TransactionItem {
 
         public void setTotalPrice(BigDecimal totalPrice) {
                 this.totalPrice = totalPrice;
+        }
+
+        public String getNote() {
+                return note;
+        }
+
+        public void setNote(String note) {
+                this.note = note;
+        }
+
+        public List<TransactionItemModifier> getModifiers() {
+                return modifiers;
+        }
+
+        public void setModifiers(List<TransactionItemModifier> modifiers) {
+                this.modifiers = modifiers;
         }
 
         public Status getStatus() {

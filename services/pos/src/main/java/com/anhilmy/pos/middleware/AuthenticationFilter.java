@@ -33,6 +33,7 @@ public final class AuthenticationFilter {
             "GET /api/v1/menu/categories",
             "GET /api/v1/menu/items",
             "GET /api/v1/menu/items/:id",
+            "GET /api/v1/menu/items/:id/modifiers",
             "GET /api/v1/payment-methods",
             "GET /api/v1/charge-templates"));
 
@@ -44,6 +45,8 @@ public final class AuthenticationFilter {
             "/api/v1/healthcheck",
             "/api/v1/auth",
             "/api/v1/menu",
+            "/api/v1/modifier-groups",
+            "/api/v1/modifier-options",
             "/api/v1/categories",
             "/api/v1/items",
             "/api/v1/orders",
@@ -64,8 +67,9 @@ public final class AuthenticationFilter {
         if (PUBLIC.contains(method + " " + path)) {
             return true;
         }
-        // Public item lookup with an id: GET /api/v1/menu/items/{id}
-        return "GET".equals(method) && path.matches("/api/v1/menu/items/\\d+");
+        // Public item lookup and its modifier groups: GET /api/v1/menu/items/{id}[/modifiers]
+        return "GET".equals(method)
+                && path.matches("/api/v1/menu/items/\\d+(/modifiers)?");
     }
 
     private static boolean isKnownApiPath(String path) {

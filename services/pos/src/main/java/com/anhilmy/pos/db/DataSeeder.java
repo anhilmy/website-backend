@@ -13,14 +13,19 @@ import com.anhilmy.pos.model.ChargeTemplate;
 import com.anhilmy.pos.model.DiningTable;
 import com.anhilmy.pos.model.MenuCategory;
 import com.anhilmy.pos.model.MenuItem;
+import com.anhilmy.pos.model.ModifierGroup;
+import com.anhilmy.pos.model.ModifierOption;
 import com.anhilmy.pos.model.PaymentMethod;
 import com.anhilmy.pos.model.Roles;
+import com.anhilmy.pos.model.SelectionType;
 import com.anhilmy.pos.model.TableStatus;
 import com.anhilmy.pos.model.User;
 import com.anhilmy.pos.repository.ChargeTemplateRepository;
 import com.anhilmy.pos.repository.DiningTableRepository;
 import com.anhilmy.pos.repository.MenuCategoryRepository;
 import com.anhilmy.pos.repository.MenuItemRepository;
+import com.anhilmy.pos.repository.ModifierGroupRepository;
+import com.anhilmy.pos.repository.ModifierOptionRepository;
 import com.anhilmy.pos.repository.PaymentMethodRepository;
 import com.anhilmy.pos.repository.UserRepository;
 import com.anhilmy.pos.util.PasswordUtil;
@@ -53,6 +58,7 @@ public final class DataSeeder {
             seedPaymentMethods();
             seedChargeTemplates();
             seedMenu();
+            seedModifiers();
             seedTables();
             DbManager.commitAndClose();
         } catch (RuntimeException e) {
@@ -90,6 +96,32 @@ public final class DataSeeder {
         items.save(item("Grilled Chicken", "Chicken breast with vegetables", "45000", mains));
         items.save(item("Chocolate Cake", "Slice of chocolate cake", "30000", desserts));
         log.info("Seeded sample menu categories and items");
+    }
+
+    private static void seedModifiers() {
+        MenuItemRepository items = new MenuItemRepository();
+        MenuItem espresso = items.findByName("Espresso").orElse(null);
+        if (espresso == null) {
+            return;
+        }
+        ModifierGroupRepository groups = new ModifierGroupRepository();
+        if (!groups.findByMenuItemId(espresso.getId(), false).isEmpty()) {
+            return;
+        }
+        ModifierOptionRepository options = new ModifierOptionRepository();
+
+        ModifierGroup temperature = group(espresso, "Temperature", SelectionType.SINGLE,
+                true, 1, 1, 10);
+        groups.save(temperature);
+        ModifierGroup extras = group(espresso, "Extras", SelectionType.MULTI,
+                false, 0, 3, 20);
+        groups.save(extras);
+
+        options.save(option(temperature, "Hot", "0", true, 10));
+        options.save(option(temperature, "Iced", "0", false, 20));
+        options.save(option(extras, "Extra shot", "5000", false, 10));
+        options.save(option(extras, "Oat milk", "8000", false, 20));
+        log.info("Seeded Espresso modifier groups");
     }
 
     private static void seedPaymentMethods() {
@@ -146,6 +178,36 @@ public final class DataSeeder {
             tables.save(table);
         }
         log.info("Seeded {} dining tables", layout.length);
+    }
+
+    private static ModifierGroup group(MenuItem item, String name, SelectionType selectionType,
+            boolean required, int minSelect, int maxSelect, int sortOrder) {
+        ModifierGroup group = new ModifierGroup();
+        group.setMenuItem(item);
+        group.setName(name);
+        group.setSelectionType(selectionType);
+        group.setRequired(required);
+        group.setMinSelect(minSelect);
+        group.setMaxSelect(maxSelect);
+        group.setSortOrder(sortOrder);
+        group.setActive(true);
+        group.setCreatedAt(LocalDateTime.now());
+        group.setUpdatedAt(LocalDateTime.now());
+        return group;
+    }
+
+    private static ModifierOption option(ModifierGroup group, String name, String priceDelta,
+            boolean isDefault, int sortOrder) {
+        ModifierOption option = new ModifierOption();
+        option.setGroup(group);
+        option.setName(name);
+        option.setPriceDelta(new BigDecimal(priceDelta));
+        option.setIsDefault(isDefault);
+        option.setAvailable(true);
+        option.setSortOrder(sortOrder);
+        option.setCreatedAt(LocalDateTime.now());
+        option.setUpdatedAt(LocalDateTime.now());
+        return option;
     }
 
     private static User user(String username, String rawPassword, String role) {

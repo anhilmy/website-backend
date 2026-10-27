@@ -84,7 +84,8 @@ public class OrderController {
             Long id = InputValidator.parseLongId(req.params(":id"), "id");
             requireAccessible(req, service.getById(id));
             OrderItemRequest body = Responder.parse(req, OrderItemRequest.class);
-            return Responder.ok(res, service.addItem(id, body.menuItemId, body.quantity));
+            return Responder.ok(res, service.addItem(id, body.menuItemId, body.quantity,
+                    body.modifierOptionIds, body.note));
         }));
 
         put("/orders/:id/items/:itemId", Routes.wrap((req, res) -> {
@@ -92,7 +93,8 @@ public class OrderController {
             Long itemId = InputValidator.parseLongId(req.params(":itemId"), "itemId");
             requireAccessible(req, service.getById(id));
             OrderItemRequest body = Responder.parse(req, OrderItemRequest.class);
-            return Responder.ok(res, service.updateItemQuantity(id, itemId, body.quantity));
+            return Responder.ok(res, service.updateItem(id, itemId, body.quantity,
+                    body.modifierOptionIds, body.note));
         }));
 
         // Kept for older clients; drafts now void the line instead of deleting it.

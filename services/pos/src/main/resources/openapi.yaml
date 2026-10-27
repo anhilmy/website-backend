@@ -14,6 +14,7 @@ tags:
   - name: Public Menu
   - name: Categories
   - name: Items
+  - name: Modifiers
   - name: Orders
   - name: Payment Methods
   - name: Charges
@@ -81,7 +82,12 @@ paths:
       summary: List available items (public)
       security: []
       responses:
-        '200': { description: Available items }
+        '200':
+          description: Available items, each with a derived `hasModifiers` flag
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItemListEnvelope'
   /api/v1/menu/items/{id}:
     get:
       tags: [Public Menu]
@@ -90,7 +96,27 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdPath'
       responses:
-        '200': { description: Menu item }
+        '200':
+          description: Menu item, including `hasModifiers`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItemEnvelope'
+        '404': { description: Not found }
+  /api/v1/menu/items/{id}/modifiers:
+    get:
+      tags: [Public Menu]
+      summary: Active modifier groups and options for an item (public)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Groups with options
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModifierGroupListEnvelope'
         '404': { description: Not found }
   /api/v1/categories:
     get:
@@ -191,6 +217,103 @@ paths:
         - $ref: '#/components/parameters/IdPath'
       responses:
         '204': { description: Deactivated }
+  /api/v1/modifier-groups:
+    get:
+      tags: [Modifiers]
+      summary: List modifier groups (manager only)
+      parameters:
+        - { name: menuItemId, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Groups with options
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModifierGroup'
+        '403': { description: Forbidden }
+    post:
+      tags: [Modifiers]
+      summary: Create a modifier group (manager only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifierGroupRequest'
+      responses:
+        '201': { description: Created }
+        '400': { description: Invalid scope or min/max rules }
+        '403': { description: Forbidden }
+  /api/v1/modifier-groups/{id}:
+    put:
+      tags: [Modifiers]
+      summary: Update a modifier group (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifierGroupRequest'
+      responses:
+        '200': { description: Updated }
+        '400': { description: Invalid min/max rules }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+    delete:
+      tags: [Modifiers]
+      summary: Soft-deactivate a modifier group (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Deactivated }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+  /api/v1/modifier-groups/{groupId}/options:
+    post:
+      tags: [Modifiers]
+      summary: Add an option to a group (manager only)
+      parameters:
+        - { name: groupId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifierOptionRequest'
+      responses:
+        '201': { description: Created }
+        '403': { description: Forbidden }
+        '404': { description: Group not found }
+        '409': { description: Group is inactive }
+  /api/v1/modifier-options/{id}:
+    put:
+      tags: [Modifiers]
+      summary: Update an option (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifierOptionRequest'
+      responses:
+        '200': { description: Updated }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+    delete:
+      tags: [Modifiers]
+      summary: Soft-deactivate an option (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204': { description: Deactivated }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
   /api/v1/orders:
     get:
       tags: [Orders]
@@ -202,7 +325,12 @@ paths:
         - { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
         - { name: size, in: query, schema: { type: integer, default: 20, minimum: 1, maximum: 100 } }
       responses:
-        '200': { description: Paged orders }
+        '200':
+          description: Paged orders
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPageEnvelope'
     post:
       tags: [Orders]
       summary: Create a draft order
@@ -212,7 +340,12 @@ paths:
             schema:
               $ref: '#/components/schemas/OrderRequest'
       responses:
-        '201': { description: Draft created }
+        '201':
+          description: Draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
   /api/v1/orders/{id}:
     get:
       tags: [Orders]
@@ -220,7 +353,12 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdPath'
       responses:
-        '200': { description: Order }
+        '200':
+          description: Order with line modifiers and notes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
         '404': { description: Not found }
   /api/v1/orders/{id}/items:
     post:
@@ -235,12 +373,18 @@ paths:
             schema:
               $ref: '#/components/schemas/OrderItemRequest'
       responses:
-        '200': { description: Updated order }
-        '409': { description: Order not a draft / item unavailable }
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
+        '400': { description: Unknown option, duplicate ids, or an invalid note/quantity }
+        '409': { description: Order not a draft, item unavailable, or required options missing }
   /api/v1/orders/{id}/items/{itemId}:
     put:
       tags: [Orders]
-      summary: Update an order item quantity
+      summary: Update a draft line (quantity, options or note)
       parameters:
         - $ref: '#/components/parameters/IdPath'
         - { name: itemId, in: path, required: true, schema: { type: integer } }
@@ -251,7 +395,14 @@ paths:
             schema:
               $ref: '#/components/schemas/OrderItemRequest'
       responses:
-        '200': { description: Updated order }
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
+        '400': { description: Unknown option, duplicate ids, or invalid note/quantity }
+        '409': { description: Order not a draft, required options missing, or duplicate line identity }
     delete:
       tags: [Orders]
       summary: Remove an item from a draft order
@@ -259,7 +410,12 @@ paths:
         - $ref: '#/components/parameters/IdPath'
         - { name: itemId, in: path, required: true, schema: { type: integer } }
       responses:
-        '200': { description: Updated order }
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
   /api/v1/orders/{id}/complete:
     post:
       tags: [Orders]
@@ -273,7 +429,12 @@ paths:
             schema:
               $ref: '#/components/schemas/CompleteOrderRequest'
       responses:
-        '200': { description: Completed order }
+        '200':
+          description: Completed order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
         '409': { description: Empty order or insufficient payment }
   /api/v1/orders/{id}/cancel:
     post:
@@ -282,7 +443,12 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdPath'
       responses:
-        '200': { description: Cancelled order }
+        '200':
+          description: Cancelled order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
         '409': { description: Order cannot be cancelled }
   /api/v1/orders/{id}/items/{itemId}/void:
     post:
@@ -298,7 +464,12 @@ paths:
             schema:
               $ref: '#/components/schemas/VoidItemRequest'
       responses:
-        '200': { description: Updated order }
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
         '409': { description: Line already voided or order not draft }
   /api/v1/orders/{id}/refunds:
     post:
@@ -313,7 +484,12 @@ paths:
             schema:
               $ref: '#/components/schemas/RefundRequest'
       responses:
-        '200': { description: Updated order with refunds }
+        '200':
+          description: Updated order with refunds (option pricing included in the line total)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
         '403': { description: Forbidden }
         '409': { description: Quantity/status invalid }
   /api/v1/orders/{id}/amend:
@@ -323,7 +499,12 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IdPath'
       responses:
-        '201': { description: New draft bill }
+        '201':
+          description: New draft bill with copied modifier snapshots and notes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
         '409': { description: Bill is not cancelled or already amended }
   /api/v1/reports/payments:
     get:
@@ -658,6 +839,193 @@ components:
       properties:
         menuItemId: { type: integer }
         quantity: { type: integer, minimum: 1 }
+        modifierOptionIds:
+          type: array
+          description: 'Selected option ids. Null on PUT leaves the snapshot unchanged; [] clears it.'
+          items: { type: integer }
+        note: { type: string, maxLength: 255, nullable: true }
+    ModifierGroupRequest:
+      type: object
+      required: [menuItemId, name]
+      properties:
+        menuItemId: { type: integer }
+        name: { type: string, maxLength: 64 }
+        selectionType: { type: string, enum: [SINGLE, MULTI] }
+        required: { type: boolean }
+        minSelect: { type: integer, minimum: 0 }
+        maxSelect: { type: integer, minimum: 1 }
+        sortOrder: { type: integer }
+        active: { type: boolean }
+    ModifierOptionRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 64 }
+        priceDelta: { type: number, description: 'Per-unit delta; may be negative' }
+        isDefault: { type: boolean }
+        available: { type: boolean }
+        sortOrder: { type: integer }
+    ModifierOption:
+      type: object
+      properties:
+        id: { type: integer }
+        groupId: { type: integer }
+        name: { type: string }
+        priceDelta: { type: number }
+        isDefault: { type: boolean }
+        available: { type: boolean }
+        sortOrder: { type: integer }
+    ModifierGroup:
+      type: object
+      properties:
+        id: { type: integer }
+        menuItemId: { type: integer }
+        name: { type: string }
+        selectionType: { type: string, enum: [SINGLE, MULTI] }
+        required: { type: boolean }
+        minSelect: { type: integer }
+        maxSelect: { type: integer }
+        sortOrder: { type: integer }
+        active: { type: boolean }
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModifierOption'
+    MenuItem:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        price: { type: number }
+        menuCategory:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        available: { type: boolean }
+        imageUrl: { type: string, nullable: true }
+        hasModifiers:
+          type: boolean
+          description: True when the item has at least one active modifier group.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TransactionItemModifier:
+      type: object
+      description: >
+        Snapshot copied onto the order line at order time. Names and the price delta are
+        authoritative for that bill even if the menu option is later edited or deleted.
+      properties:
+        id: { type: integer }
+        modifierOptionId: { type: integer, nullable: true }
+        groupName: { type: string }
+        optionName: { type: string }
+        priceDelta: { type: number }
+        sortOrder:
+          type: integer
+          description: Display ordinal, stable for the lifetime of the bill.
+        createdAt: { type: string, format: date-time }
+    TransactionItem:
+      type: object
+      properties:
+        id: { type: integer }
+        menuItem:
+          $ref: '#/components/schemas/MenuItem'
+        quantity: { type: integer }
+        unitPrice:
+          type: number
+          description: Effective per-unit price including the selected option deltas.
+        totalPrice: { type: number }
+        note: { type: string, nullable: true, maxLength: 255 }
+        modifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionItemModifier'
+        status: { type: string, enum: [ACTIVE, VOIDED] }
+        voidReason: { type: string, nullable: true }
+        voidedBy: { type: string, nullable: true }
+        voidedAt: { type: string, format: date-time, nullable: true }
+    Order:
+      type: object
+      properties:
+        id: { type: integer }
+        status:
+          type: string
+          enum: [DRAFT, IN_PROGRESS, COMPLETED, CANCELLED, PARTIALLY_REFUNDED, REFUNDED, AMENDED]
+        subtotalAmount: { type: number }
+        chargesAmount: { type: number }
+        taxAmount: { type: number }
+        totalAmount: { type: number }
+        refundedAmount: { type: number }
+        paymentMethod: { type: string, nullable: true }
+        paymentAmount: { type: number, nullable: true }
+        paymentReference: { type: string, nullable: true }
+        customerInfo: { type: string, nullable: true }
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionItem'
+        charges:
+          type: array
+          items:
+            $ref: '#/components/schemas/Charge'
+        refunds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Refund'
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MenuItemEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/MenuItem' }
+        message: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+    MenuItemListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuItem'
+        message: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+    ModifierGroupListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModifierGroup'
+        message: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+    OrderEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Order' }
+        message: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
+    OrderPageEnvelope:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Order'
+            page: { type: integer }
+            size: { type: integer }
+            total: { type: integer }
+            totalPages: { type: integer }
+        message: { type: string, nullable: true }
+        timestamp: { type: string, format: date-time }
     CompleteOrderRequest:
       type: object
       required: [paymentMethod, paymentAmount]

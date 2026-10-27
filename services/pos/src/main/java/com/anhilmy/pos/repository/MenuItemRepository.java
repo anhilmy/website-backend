@@ -2,6 +2,7 @@ package com.anhilmy.pos.repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import org.hibernate.query.Query;
 
@@ -20,6 +21,15 @@ public class MenuItemRepository extends BaseRepository<MenuItem, Long> {
                         MenuItem.class)
                 .setParameter("cid", categoryId)
                 .list();
+    }
+
+    /** First match by name; item names are not unique, so this never throws on duplicates. */
+    public Optional<MenuItem> findByName(String name) {
+        return session()
+                .createQuery("from MenuItem where name = :name order by id", MenuItem.class)
+                .setParameter("name", name)
+                .setMaxResults(1)
+                .uniqueResultOptional();
     }
 
     public List<MenuItem> findByAvailability(boolean available) {

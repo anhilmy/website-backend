@@ -14,10 +14,13 @@ import com.anhilmy.pos.model.ChargeTemplate;
 import com.anhilmy.pos.model.DiningTable;
 import com.anhilmy.pos.model.MenuCategory;
 import com.anhilmy.pos.model.MenuItem;
+import com.anhilmy.pos.model.ModifierGroup;
+import com.anhilmy.pos.model.ModifierOption;
 import com.anhilmy.pos.model.PaymentMethod;
 import com.anhilmy.pos.model.Refund;
 import com.anhilmy.pos.model.Transaction;
 import com.anhilmy.pos.model.TransactionItem;
+import com.anhilmy.pos.model.TransactionItemModifier;
 import com.anhilmy.pos.model.User;
 
 @SuppressWarnings("ConvertToStringSwitch")
@@ -55,6 +58,9 @@ public class HibernateUtil {
             configuration.addAnnotatedClass(ChargeTemplate.class);
             configuration.addAnnotatedClass(Charge.class);
             configuration.addAnnotatedClass(Refund.class);
+            configuration.addAnnotatedClass(ModifierGroup.class);
+            configuration.addAnnotatedClass(ModifierOption.class);
+            configuration.addAnnotatedClass(TransactionItemModifier.class);
 
             ServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder()
                     .applySettings(configuration.getProperties()).build();

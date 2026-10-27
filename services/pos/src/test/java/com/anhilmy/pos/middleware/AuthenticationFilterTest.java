@@ -21,6 +21,7 @@ class AuthenticationFilterTest {
         assertTrue(AuthenticationFilter.isPublic("GET", "/api/v1/menu/categories"));
         assertTrue(AuthenticationFilter.isPublic("GET", "/api/v1/menu/items"));
         assertTrue(AuthenticationFilter.isPublic("GET", "/api/v1/menu/items/42"));
+        assertTrue(AuthenticationFilter.isPublic("GET", "/api/v1/menu/items/42/modifiers"));
     }
 
     @Test
