@@ -1,5 +1,7 @@
 -- Sample menu data for PostgreSQL (run after schema_postgres.sql)
 -- Users are seeded by the application (bcrypt hashes) - see DataSeeder.
+-- Money values are minor units (scale 2): Rp 18.000 -> 1800000.
+-- Charge values are scale 6: 0.10 (10%) -> 100000.
 
 INSERT INTO payment_methods
     (code, label, active, is_cash, requires_reference, sort_order)
@@ -14,7 +16,7 @@ ON CONFLICT (code) DO NOTHING;
 INSERT INTO charge_templates
     (code, label, calc_type, value, basis, sort_order, taxable, is_tax, active)
 VALUES
-    ('TAX', 'Tax', 'PERCENTAGE', 0.10, 'SUBTOTAL', 10, FALSE, TRUE, TRUE)
+    ('TAX', 'Tax', 'PERCENTAGE', 100000, 'SUBTOTAL', 10, FALSE, TRUE, TRUE)
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO menu_categories (name, description, active)
@@ -25,17 +27,17 @@ VALUES
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO menu_items (name, description, price, category_id, available)
-SELECT 'Espresso', 'Single shot espresso', 18000.00, c.id, TRUE
+SELECT 'Espresso', 'Single shot espresso', 1800000, c.id, TRUE
 FROM menu_categories c WHERE c.name = 'Beverages'
   AND NOT EXISTS (SELECT 1 FROM menu_items m WHERE m.name = 'Espresso');
 
 INSERT INTO menu_items (name, description, price, category_id, available)
-SELECT 'Grilled Chicken', 'Chicken breast with vegetables', 45000.00, c.id, TRUE
+SELECT 'Grilled Chicken', 'Chicken breast with vegetables', 4500000, c.id, TRUE
 FROM menu_categories c WHERE c.name = 'Main Course'
   AND NOT EXISTS (SELECT 1 FROM menu_items m WHERE m.name = 'Grilled Chicken');
 
 INSERT INTO menu_items (name, description, price, category_id, available)
-SELECT 'Chocolate Cake', 'Slice of chocolate cake', 30000.00, c.id, TRUE
+SELECT 'Chocolate Cake', 'Slice of chocolate cake', 3000000, c.id, TRUE
 FROM menu_categories c WHERE c.name = 'Desserts'
   AND NOT EXISTS (SELECT 1 FROM menu_items m WHERE m.name = 'Chocolate Cake');
 
@@ -76,7 +78,7 @@ WHERE m.name = 'Espresso' AND g.name = 'Temperature'
 
 INSERT INTO modifier_options
     (group_id, name, price_delta, is_default, available, sort_order)
-SELECT g.id, 'Extra shot', 5000, FALSE, TRUE, 10
+SELECT g.id, 'Extra shot', 500000, FALSE, TRUE, 10
 FROM modifier_groups g JOIN menu_items m ON g.menu_item_id = m.id
 WHERE m.name = 'Espresso' AND g.name = 'Extras'
   AND NOT EXISTS (
@@ -84,7 +86,7 @@ WHERE m.name = 'Espresso' AND g.name = 'Extras'
 
 INSERT INTO modifier_options
     (group_id, name, price_delta, is_default, available, sort_order)
-SELECT g.id, 'Oat milk', 8000, FALSE, TRUE, 20
+SELECT g.id, 'Oat milk', 800000, FALSE, TRUE, 20
 FROM modifier_groups g JOIN menu_items m ON g.menu_item_id = m.id
 WHERE m.name = 'Espresso' AND g.name = 'Extras'
   AND NOT EXISTS (

@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.anhilmy.pos.dto.CompleteOrderRequest;
+import com.anhilmy.pos.dto.OrderChargeRequest;
 import com.anhilmy.pos.dto.OrderItemRequest;
 import com.anhilmy.pos.dto.OrderRequest;
 import com.anhilmy.pos.dto.PageResponse;
@@ -121,6 +122,38 @@ public class OrderController {
                     Map.<String, Object>of("itemId", itemId,
                             "reason", String.valueOf(body.reason)));
             return Responder.ok(res, voided);
+        }));
+
+        post("/orders/:id/charges", Routes.wrap((req, res) -> {
+            AuthenticationFilter.requireRole(req, Roles.MANAGER);
+            Long id = InputValidator.parseLongId(req.params(":id"), "id");
+            requireAccessible(req, service.getById(id));
+            OrderChargeRequest body = Responder.parse(req, OrderChargeRequest.class);
+            Transaction charged = service.addCharge(id, body);
+            audit(req, "order.charge_added", id, body.value == null
+                    ? null : body.value.toString());
+            return Responder.created(res, charged);
+        }));
+
+        put("/orders/:id/charges/:chargeId", Routes.wrap((req, res) -> {
+            AuthenticationFilter.requireRole(req, Roles.MANAGER);
+            Long id = InputValidator.parseLongId(req.params(":id"), "id");
+            Long chargeId = InputValidator.parseLongId(req.params(":chargeId"), "chargeId");
+            requireAccessible(req, service.getById(id));
+            OrderChargeRequest body = Responder.parse(req, OrderChargeRequest.class);
+            Transaction charged = service.updateCharge(id, chargeId, body);
+            audit(req, "order.charge_updated", id, String.valueOf(chargeId));
+            return Responder.ok(res, charged);
+        }));
+
+        delete("/orders/:id/charges/:chargeId", Routes.wrap((req, res) -> {
+            AuthenticationFilter.requireRole(req, Roles.MANAGER);
+            Long id = InputValidator.parseLongId(req.params(":id"), "id");
+            Long chargeId = InputValidator.parseLongId(req.params(":chargeId"), "chargeId");
+            requireAccessible(req, service.getById(id));
+            Transaction charged = service.removeCharge(id, chargeId);
+            audit(req, "order.charge_removed", id, String.valueOf(chargeId));
+            return Responder.ok(res, charged);
         }));
 
         post("/orders/:id/refunds", Routes.wrap((req, res) -> {

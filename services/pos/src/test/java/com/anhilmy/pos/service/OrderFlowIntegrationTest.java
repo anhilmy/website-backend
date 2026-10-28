@@ -2,6 +2,7 @@ package com.anhilmy.pos.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -121,6 +122,38 @@ class OrderFlowIntegrationTest {
 
         // Completed orders are immutable.
         assertThrows(BusinessRuleException.class, () -> service.addItem(orderId, itemId, 1));
+    }
+
+    @Test
+    void moneyIsStoredAsExactMinorUnitsAndPriceFiltersUseTheSameScale() {
+        String suffix = Long.toString(System.nanoTime());
+
+        MenuCategory category = new MenuCategory();
+        category.setName("Money_" + suffix);
+        category.setActive(true);
+        categoryRepository.save(category);
+
+        MenuItem item = new MenuItem();
+        item.setName("Exact_" + suffix);
+        item.setPrice(new BigDecimal("12345.67"));
+        item.setMenuCategory(category);
+        item.setAvailable(true);
+        menuItemRepository.save(item);
+
+        Object stored = DbManager.getSession()
+                .createNativeQuery("select price from menu_items where id = :id")
+                .setParameter("id", item.getId())
+                .getSingleResult();
+        assertTrue(stored instanceof Number);
+        assertEquals(1_234_567L, ((Number) stored).longValue());
+
+        List<MenuItem> match = menuItemRepository.search("exact_" + suffix, null, null,
+                new BigDecimal("12345.67"), new BigDecimal("12345.67"));
+        assertEquals(1, match.size());
+
+        List<MenuItem> tooCheap = menuItemRepository.search("exact_" + suffix, null, null,
+                new BigDecimal("12345.68"), null);
+        assertTrue(tooCheap.isEmpty());
     }
 
     @Test

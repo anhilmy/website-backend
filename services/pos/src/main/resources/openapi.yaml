@@ -229,9 +229,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ModifierGroup'
+                $ref: '#/components/schemas/ModifierGroupListEnvelope'
         '403': { description: Forbidden }
     post:
       tags: [Modifiers]
@@ -416,6 +414,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OrderEnvelope'
+  /api/v1/orders/{id}/charges:
+    post:
+      tags: [Orders]
+      summary: Add an ad-hoc charge or discount to a draft (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderChargeRequest'
+      responses:
+        '201':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
+        '403': { description: Forbidden }
+        '409': { description: Order not a draft, or charges make the total negative }
+  /api/v1/orders/{id}/charges/{chargeId}:
+    put:
+      tags: [Orders]
+      summary: Update an ad-hoc charge or discount (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - { name: chargeId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderChargeRequest'
+      responses:
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
+        '403': { description: Forbidden }
+        '409': { description: Order not a draft, unknown charge, or negative total }
+    delete:
+      tags: [Orders]
+      summary: Remove an ad-hoc charge or discount (manager only)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - { name: chargeId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderEnvelope'
+        '403': { description: Forbidden }
+        '409': { description: Order not a draft or unknown charge }
   /api/v1/orders/{id}/complete:
     post:
       tags: [Orders]
@@ -1056,6 +1112,20 @@ components:
         isCash: { type: boolean }
         requiresReference: { type: boolean }
         sortOrder: { type: integer }
+    OrderChargeRequest:
+      type: object
+      description: 'label is required on create; PUT accepts partial fields'
+      properties:
+        code: { type: string, pattern: '^[A-Za-z0-9_]{2,32}$', description: 'Defaults to AD_HOC' }
+        label: { type: string, maxLength: 64 }
+        calcType: { type: string, enum: [PERCENTAGE, FIXED] }
+        value:
+          type: number
+          description: 'Negative is a discount. PERCENTAGE is a fraction -1..1 (0.10 = 10%); FIXED is an absolute amount'
+        basis: { type: string, enum: [SUBTOTAL, RUNNING_TOTAL] }
+        sortOrder: { type: integer }
+        taxable: { type: boolean }
+        isTax: { type: boolean }
     ChargeTemplateRequest:
       type: object
       required: [code, label]
@@ -1065,7 +1135,7 @@ components:
         calcType: { type: string, enum: [PERCENTAGE, FIXED] }
         value:
           type: number
-          description: 'PERCENTAGE is a fraction 0-1 (0.10 = 10%); FIXED is an absolute amount'
+          description: 'Negative is a discount. PERCENTAGE is a fraction -1..1 (0.10 = 10%); FIXED is an absolute amount'
         basis: { type: string, enum: [SUBTOTAL, RUNNING_TOTAL] }
         sortOrder: { type: integer }
         taxable: { type: boolean, description: 'Feeds later RUNNING_TOTAL bases' }

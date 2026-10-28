@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -32,6 +33,7 @@ public class ModifierOption {
     private String name;
 
     @NotNull
+    @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
     @Column(name = "price_delta", nullable = false)
     private BigDecimal priceDelta = BigDecimal.ZERO;
 

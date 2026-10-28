@@ -7,6 +7,7 @@ import java.util.List;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -40,17 +41,21 @@ public class Transaction {
     private Long version;
 
     @NotNull
+    @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount = BigDecimal.ZERO;
 
     /** Sum of line totals; persisted so a settled bill can be reconciled without the lines. */
+    @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
     @Column(name = "subtotal_amount", nullable = false)
     private BigDecimal subtotalAmount = BigDecimal.ZERO;
 
     /** Sum of every evaluated charge. */
+    @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
     @Column(name = "charges_amount", nullable = false)
     private BigDecimal chargesAmount = BigDecimal.ZERO;
 
+    @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
     @Column(name = "tax_amount", nullable = false)
     private BigDecimal taxAmount = BigDecimal.ZERO;
 
@@ -58,6 +63,7 @@ public class Transaction {
     @Column(name = "payment_method")
     private String paymentMethod;
 
+    @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
     @Column(name = "payment_amount")
     private BigDecimal paymentAmount;
 
@@ -66,6 +72,7 @@ public class Transaction {
     private String paymentReference;
 
     /** Running aggregate of append-only refunds; the original total is never reduced. */
+    @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
     @Column(name = "refunded_amount", nullable = false)
     private BigDecimal refundedAmount = BigDecimal.ZERO;
 

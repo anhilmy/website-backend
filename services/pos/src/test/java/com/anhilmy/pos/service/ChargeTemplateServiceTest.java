@@ -97,13 +97,30 @@ class ChargeTemplateServiceTest {
     }
 
     @Test
-    void createRejectsNegativeValue() {
-        when(repository.findByCode("TAX")).thenReturn(Optional.empty());
+    void createAllowsNegativeFixedDiscount() {
+        when(repository.findByCode("DISCOUNT")).thenReturn(Optional.empty());
+        when(repository.save(any(ChargeTemplate.class))).thenAnswer(inv -> inv.getArgument(0));
 
         ChargeTemplateRequest request = new ChargeTemplateRequest();
-        request.code = "TAX";
-        request.label = "Tax";
-        request.value = new BigDecimal("-1");
+        request.code = "DISCOUNT";
+        request.label = "Discount";
+        request.calcType = ChargeCalcType.FIXED;
+        request.value = new BigDecimal("-5000");
+
+        ChargeTemplate created = service.create(request);
+
+        assertEquals(0, new BigDecimal("-5000").compareTo(created.getValue()));
+    }
+
+    @Test
+    void createRejectsPercentageMagnitudeAboveOne() {
+        when(repository.findByCode("BIG")).thenReturn(Optional.empty());
+
+        ChargeTemplateRequest request = new ChargeTemplateRequest();
+        request.code = "BIG";
+        request.label = "Big";
+        request.calcType = ChargeCalcType.PERCENTAGE;
+        request.value = new BigDecimal("-1.01");
 
         assertThrows(ValidationException.class, () -> service.create(request));
     }

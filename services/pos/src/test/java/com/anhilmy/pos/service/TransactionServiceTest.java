@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.anhilmy.pos.dto.OrderChargeRequest;
 import com.anhilmy.pos.exception.BusinessRuleException;
 import com.anhilmy.pos.model.Charge;
 import com.anhilmy.pos.model.ChargeBasis;
@@ -156,6 +157,8 @@ class TransactionServiceTest {
     @Test
     void addItemComputesLineAndOrderTotalsWithTax() {
         Transaction tx = draft(1L);
+        tx.addCharge(charge("TAX", ChargeCalcType.PERCENTAGE, "0.10",
+                ChargeBasis.SUBTOTAL, 10, false, true));
         when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
         when(menuItemRepository.findById(10L)).thenReturn(Optional.of(menuItem(10L, "10.00", true)));
         lenient().when(transactionRepository.update(tx)).thenReturn(tx);
@@ -294,6 +297,106 @@ class TransactionServiceTest {
 
         assertEquals(0, new BigDecimal("5.00").compareTo(tx.getChargesAmount()));
         assertEquals(0, new BigDecimal("105.00").compareTo(tx.getTotalAmount()));
+    }
+
+    @Test
+    void addAdHocFixedDiscountReducesTotal() {
+        Transaction tx = draft(1L);
+        tx.addItem(line("100.00", 1));
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        lenient().when(transactionRepository.update(tx)).thenReturn(tx);
+
+        OrderChargeRequest request = new OrderChargeRequest();
+        request.code = "DISCOUNT";
+        request.label = "Staff discount";
+        request.calcType = ChargeCalcType.FIXED;
+        request.value = new BigDecimal("-10.00");
+        request.basis = ChargeBasis.SUBTOTAL;
+
+        service.addCharge(1L, request);
+
+        assertEquals(1, tx.getCharges().size());
+        assertEquals(0, new BigDecimal("-10.00").compareTo(tx.getChargesAmount()));
+        assertEquals(0, new BigDecimal("90.00").compareTo(tx.getTotalAmount()));
+    }
+
+    @Test
+    void addAdHocPercentageDiscountReducesTotal() {
+        Transaction tx = draft(1L);
+        tx.addItem(line("100.00", 1));
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        lenient().when(transactionRepository.update(tx)).thenReturn(tx);
+
+        OrderChargeRequest request = new OrderChargeRequest();
+        request.label = "Ten percent off";
+        request.value = new BigDecimal("-0.10");
+
+        service.addCharge(1L, request);
+
+        assertEquals(0, new BigDecimal("-10.00").compareTo(tx.getChargesAmount()));
+        assertEquals(0, new BigDecimal("90.00").compareTo(tx.getTotalAmount()));
+    }
+
+    @Test
+    void checkChargeCanBeUpdatedAndRemoved() {
+        Transaction tx = draft(1L);
+        tx.addItem(line("100.00", 1));
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        lenient().when(transactionRepository.update(tx)).thenReturn(tx);
+
+        OrderChargeRequest add = new OrderChargeRequest();
+        add.code = "SERVICE";
+        add.label = "Service";
+        add.calcType = ChargeCalcType.FIXED;
+        add.value = new BigDecimal("5.00");
+        service.addCharge(1L, add);
+        tx.getCharges().get(0).setId(99L);
+        Long chargeId = 99L;
+
+        OrderChargeRequest update = new OrderChargeRequest();
+        update.value = new BigDecimal("8.00");
+        service.updateCharge(1L, chargeId, update);
+        assertEquals(0, new BigDecimal("8.00").compareTo(tx.getChargesAmount()));
+
+        service.removeCharge(1L, chargeId);
+        assertEquals(0, BigDecimal.ZERO.compareTo(tx.getChargesAmount()));
+        assertEquals(0, new BigDecimal("100.00").compareTo(tx.getTotalAmount()));
+    }
+
+    @Test
+    void adHocChargeCannotMakeTheTotalNegative() {
+        Transaction tx = draft(1L);
+        tx.addItem(line("5.00", 1));
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+        lenient().when(transactionRepository.update(tx)).thenReturn(tx);
+
+        OrderChargeRequest request = new OrderChargeRequest();
+        request.label = "Too much discount";
+        request.calcType = ChargeCalcType.FIXED;
+        request.value = new BigDecimal("-10.00");
+
+        assertThrows(BusinessRuleException.class, () -> service.addCharge(1L, request));
+    }
+
+    @Test
+    void adHocChargeRejectsPercentageAboveOneAndSettledBills() {
+        Transaction tx = draft(1L);
+        tx.addItem(line("100.00", 1));
+        when(transactionRepository.findById(1L)).thenReturn(Optional.of(tx));
+
+        OrderChargeRequest request = new OrderChargeRequest();
+        request.label = "Bad percent";
+        request.calcType = ChargeCalcType.PERCENTAGE;
+        request.value = new BigDecimal("10");
+        assertThrows(com.anhilmy.pos.exception.ValidationException.class,
+                () -> service.addCharge(1L, request));
+
+        tx.setStatus(Transaction.Status.COMPLETED);
+        OrderChargeRequest valid = new OrderChargeRequest();
+        valid.label = "Discount";
+        valid.calcType = ChargeCalcType.FIXED;
+        valid.value = new BigDecimal("-1.00");
+        assertThrows(BusinessRuleException.class, () -> service.addCharge(1L, valid));
     }
 
     @Test

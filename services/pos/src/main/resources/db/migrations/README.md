@@ -26,6 +26,7 @@ migration tool; the recommended upgrade path (Flyway/Liquibase) is noted in
 | V6 | line voids, `refunds`, `refunded_amount`, amendment links |
 | V7 | optimistic `version` on bills + unique `amended_from_id` |
 | V8 | item modifier groups/options, line `note`, `transaction_item_modifiers` snapshots |
+| V9 | money/rate columns converted to scaled `BIGINT` minor units (exact on SQLite + Postgres) |
 
 ## Applying (manual)
 
@@ -50,3 +51,8 @@ Alternatively apply the full baseline directly:
 > created new columns/tables before you get a chance to run the matching `V*` script, so the
 > SQLite `ALTER TABLE ... ADD COLUMN` will fail with `duplicate column name`. Apply migrations
 > only to databases whose schema was created from the baseline and then upgraded by hand.
+
+> **V9 is a data migration.** Back up the database first. It multiplies every money column by
+> 100 (and charge values by 1,000,000), so running it twice corrupts amounts. Dev databases
+> created with `hbm2ddl=update` are not migrated automatically — rebuild from the baseline, or
+> stop the app, apply V9 once by hand, and restart.

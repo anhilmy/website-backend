@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -44,6 +45,7 @@ public class Charge {
     private ChargeCalcType calcType = ChargeCalcType.PERCENTAGE;
 
     @NotNull
+    @Convert(converter = com.anhilmy.pos.util.RateConverter.class)
     @Column(nullable = false)
     private BigDecimal value = BigDecimal.ZERO;
 
@@ -63,6 +65,7 @@ public class Charge {
 
     /** Persisted snapshot of the evaluated amount. */
     @NotNull
+    @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
     @Column(name = "computed_amount", nullable = false)
     private BigDecimal computedAmount = BigDecimal.ZERO;
 

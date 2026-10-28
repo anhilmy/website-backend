@@ -7,6 +7,7 @@ import java.util.List;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -48,10 +49,12 @@ public class TransactionItem {
         private Integer quantity;
 
         @NotNull
+        @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
         @Column(name = "unit_price", nullable = false)
         private BigDecimal unitPrice;
 
         @NotNull
+        @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
         @Column(name = "total_price", nullable = false)
         private BigDecimal totalPrice;
 

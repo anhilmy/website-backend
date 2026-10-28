@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -39,6 +40,7 @@ public class Refund {
     private Integer quantity;
 
     @NotNull
+    @Convert(converter = com.anhilmy.pos.util.MoneyConverter.class)
     @Column(nullable = false)
     private BigDecimal amount = BigDecimal.ZERO;
 

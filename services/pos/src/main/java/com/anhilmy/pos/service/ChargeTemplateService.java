@@ -49,7 +49,7 @@ public class ChargeTemplateService {
         });
 
         ChargeCalcType calcType = defaultCalcType(request.calcType);
-        BigDecimal value = requireNonNegative(request.value);
+        BigDecimal value = requireValue(request.value);
         validateValue(calcType, value);
 
         ChargeTemplate template = new ChargeTemplate();
@@ -85,7 +85,7 @@ public class ChargeTemplateService {
             template.setCalcType(request.calcType);
         }
         if (request.value != null) {
-            template.setValue(requireNonNegative(request.value));
+            template.setValue(requireValue(request.value));
         }
         validateValue(template.getCalcType(), template.getValue());
         if (request.basis != null) {
@@ -126,22 +126,20 @@ public class ChargeTemplateService {
         return code;
     }
 
-    private static BigDecimal requireNonNegative(BigDecimal value) {
-        if (value == null) {
-            return BigDecimal.ZERO;
-        }
-        if (value.signum() < 0) {
-            throw new ValidationException("value must be zero or greater");
-        }
-        return value;
+    /**
+     * Negative values are allowed so a template can represent a discount. The sign is applied
+     * to the computed amount; {@link TransactionService} still prevents a negative bill total.
+     */
+    private static BigDecimal requireValue(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
-    /** A percentage is a fraction: 0.10 is 10%, 1.00 is 100%. */
+    /** A percentage is a fraction: 0.10 is 10%, 1.00 is 100%, -0.10 is a 10% discount. */
     private static void validateValue(ChargeCalcType type, BigDecimal value) {
         if (type == ChargeCalcType.PERCENTAGE && value != null
-                && value.compareTo(BigDecimal.ONE) > 0) {
+                && value.abs().compareTo(BigDecimal.ONE) > 0) {
             throw new ValidationException(
-                    "percentage value must be between 0 and 1 (0.10 = 10%)");
+                    "percentage value must be between -1 and 1 (0.10 = 10%, -0.10 = discount)");
         }
     }
 

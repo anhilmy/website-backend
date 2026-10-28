@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import com.anhilmy.pos.config.ConfigManager;
+import com.anhilmy.pos.dto.OrderChargeRequest;
 import com.anhilmy.pos.exception.BusinessRuleException;
 import com.anhilmy.pos.exception.EntityNotFoundException;
 import com.anhilmy.pos.exception.ValidationException;
@@ -281,6 +282,123 @@ public class TransactionService {
         tx.setStatus(Transaction.Status.CANCELLED);
         tx.setUpdatedAt(LocalDateTime.now());
         return transactionRepository.update(tx);
+    }
+
+    /**
+     * Adds an ad-hoc charge to a draft. A negative value is a discount; a negative percentage
+     * is a percentage discount. The order total is never allowed to go below zero.
+     */
+    public Transaction addCharge(Long transactionId, OrderChargeRequest request) {
+        Transaction tx = getById(transactionId);
+        assertDraft(tx);
+
+        Charge charge = new Charge();
+        charge.setCode(normalizeChargeCode(request.code));
+        charge.setLabel(InputValidator.requireMaxLength(request.label, "label", 64));
+        charge.setCalcType(request.calcType == null
+                ? ChargeCalcType.PERCENTAGE
+                : request.calcType);
+        charge.setValue(validateChargeValue(charge.getCalcType(), request.value));
+        charge.setBasis(request.basis == null ? ChargeBasis.SUBTOTAL : request.basis);
+        charge.setSortOrder(request.sortOrder == null
+                ? nextChargeSortOrder(tx)
+                : request.sortOrder);
+        charge.setTaxable(request.taxable != null && request.taxable);
+        charge.setIsTax(request.isTax != null && request.isTax);
+        charge.setComputedAmount(BigDecimal.ZERO);
+        charge.setCreatedAt(LocalDateTime.now());
+        charge.setUpdatedAt(LocalDateTime.now());
+
+        tx.addCharge(charge);
+        recalcTotals(tx);
+        return transactionRepository.update(tx);
+    }
+
+    /** Updates an ad-hoc charge while the bill is still a draft. Null fields stay unchanged. */
+    public Transaction updateCharge(Long transactionId, Long chargeId,
+            OrderChargeRequest request) {
+        Transaction tx = getById(transactionId);
+        assertDraft(tx);
+        Charge charge = requireCharge(tx, chargeId);
+
+        if (request.code != null) {
+            charge.setCode(normalizeChargeCode(request.code));
+        }
+        if (request.label != null) {
+            charge.setLabel(InputValidator.requireMaxLength(request.label, "label", 64));
+        }
+        if (request.calcType != null) {
+            charge.setCalcType(request.calcType);
+        }
+        if (request.value != null) {
+            charge.setValue(request.value);
+        }
+        charge.setValue(validateChargeValue(charge.getCalcType(), charge.getValue()));
+        if (request.basis != null) {
+            charge.setBasis(request.basis);
+        }
+        if (request.sortOrder != null) {
+            charge.setSortOrder(request.sortOrder);
+        }
+        if (request.taxable != null) {
+            charge.setTaxable(request.taxable);
+        }
+        if (request.isTax != null) {
+            charge.setIsTax(request.isTax);
+        }
+        charge.setUpdatedAt(LocalDateTime.now());
+
+        recalcTotals(tx);
+        return transactionRepository.update(tx);
+    }
+
+    /** Removes an ad-hoc charge. Removing every charge leaves the bill at subtotal. */
+    public Transaction removeCharge(Long transactionId, Long chargeId) {
+        Transaction tx = getById(transactionId);
+        assertDraft(tx);
+        Charge charge = requireCharge(tx, chargeId);
+        tx.removeCharge(charge);
+        recalcTotals(tx);
+        return transactionRepository.update(tx);
+    }
+
+    private static Charge requireCharge(Transaction tx, Long chargeId) {
+        Long id = InputValidator.requireNonNull(chargeId, "chargeId");
+        return tx.getCharges().stream()
+                .filter(c -> c.getId() != null && c.getId().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Charge", id));
+    }
+
+    private static String normalizeChargeCode(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "AD_HOC";
+        }
+        String code = raw.trim().toUpperCase(java.util.Locale.ROOT);
+        if (!code.matches("^[A-Z0-9_]{2,32}$")) {
+            throw new ValidationException(
+                    "code must be 2-32 characters of A-Z, 0-9 or underscore");
+        }
+        return code;
+    }
+
+    private static BigDecimal validateChargeValue(ChargeCalcType type, BigDecimal value) {
+        BigDecimal clean = value == null ? BigDecimal.ZERO : value;
+        if (type == ChargeCalcType.PERCENTAGE
+                && clean.abs().compareTo(BigDecimal.ONE) > 0) {
+            throw new ValidationException(
+                    "percentage value must be between -1 and 1 (0.10 = 10%, -0.10 = discount)");
+        }
+        return clean;
+    }
+
+    private static int nextChargeSortOrder(Transaction tx) {
+        return tx.getCharges().stream()
+                .map(Charge::getSortOrder)
+                .filter(Objects::nonNull)
+                .max(Integer::compareTo)
+                .map(max -> max + 10)
+                .orElse(10);
     }
 
     /**
@@ -612,11 +730,11 @@ public class TransactionService {
         tx.setSubtotalAmount(subtotal);
 
         if (tx.getCharges().isEmpty()) {
-            // Bills created before charge templates existed keep the configured flat tax.
-            BigDecimal tax = scale(subtotal.multiply(TAX_RATE));
-            tx.setChargesAmount(tax);
-            tx.setTaxAmount(tax);
-            tx.setTotalAmount(scale(subtotal.add(tax)));
+            // Removing every ad-hoc/template charge leaves the bill at subtotal; new orders
+            // always receive at least the default tax charge from applyChargeTemplates().
+            tx.setChargesAmount(BigDecimal.ZERO);
+            tx.setTaxAmount(BigDecimal.ZERO);
+            tx.setTotalAmount(subtotal);
             tx.setUpdatedAt(LocalDateTime.now());
             return;
         }
@@ -651,9 +769,15 @@ public class TransactionService {
             }
         }
 
+        BigDecimal total = scale(subtotal.add(chargesTotal));
+        if (total.signum() < 0) {
+            throw new BusinessRuleException(
+                    "Charges and discounts cannot reduce the order total below zero");
+        }
+
         tx.setChargesAmount(scale(chargesTotal));
         tx.setTaxAmount(scale(taxTotal));
-        tx.setTotalAmount(scale(subtotal.add(chargesTotal)));
+        tx.setTotalAmount(total);
         tx.setUpdatedAt(LocalDateTime.now());
     }
 

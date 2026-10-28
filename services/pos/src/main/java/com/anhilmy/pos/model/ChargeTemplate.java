@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -42,6 +43,7 @@ public class ChargeTemplate {
     private ChargeCalcType calcType = ChargeCalcType.PERCENTAGE;
 
     @NotNull
+    @Convert(converter = com.anhilmy.pos.util.RateConverter.class)
     @Column(nullable = false)
     private BigDecimal value = BigDecimal.ZERO;
 

@@ -38,7 +38,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the deeper walkthrough.
 |---|---|
 | `config` | Environment/profile-aware configuration + DB dialect selection |
 | `db` | `DbManager` (thread-local session), `DataSeeder` |
-| `model` | JPA entities: `User`, `MenuCategory`, `MenuItem`, `Transaction`, `TransactionItem` |
+| `model` | JPA entities: `User`, `MenuCategory`, `MenuItem`, `ModifierGroup`, `ModifierOption`, `Transaction`, `TransactionItem`, `TransactionItemModifier`, `Charge`, `ChargeTemplate`, `Refund`, `PaymentMethod`, `DiningTable` |
 | `repository` | `BaseRepository` + concrete repositories |
 | `service` | Business logic and rules |
 | `controller` | SparkJava route registration |
@@ -108,10 +108,12 @@ send `Authorization: Bearer <token>`. Interactive docs at **`/docs`** (spec: `/o
 |---|---|---|
 | Health | `GET /health`, `GET /api/v1/healthcheck`, `GET /api/v1/healthcheck/ready` | public |
 | Auth | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | public / bearer |
-| Public menu | `GET /menu/categories`, `GET /menu/items`, `GET /menu/items/{id}` | public |
+| Public menu | `GET /menu/categories`, `GET /menu/items`, `GET /menu/items/{id}`, `GET /menu/items/{id}/modifiers` | public |
 | Categories | `GET/POST /categories`, `GET/PUT/DELETE /categories/{id}` | bearer |
 | Items | `GET/POST /items`, `GET/PUT/DELETE /items/{id}` | bearer |
+| Modifiers | `GET/POST /modifier-groups`, `PUT/DELETE /modifier-groups/{id}`, `POST /modifier-groups/{groupId}/options`, `PUT/DELETE /modifier-options/{id}` | bearer, MANAGER |
 | Orders | `GET/POST /orders`, `GET /orders/{id}`, `POST /orders/{id}/items`, `PUT/DELETE /orders/{id}/items/{itemId}`, `POST /orders/{id}/complete`, `POST /orders/{id}/cancel` | bearer |
+| Order charges | `POST /orders/{id}/charges`, `PUT/DELETE /orders/{id}/charges/{chargeId}` (ad-hoc charge or negative discount) | bearer, MANAGER |
 | Payment methods | `GET /payment-methods` (public) | public |
 | Payment methods | `POST /payment-methods`, `PUT/DELETE /payment-methods/{id}` | bearer, MANAGER |
 | Charge templates | `GET /charge-templates` (public) | public |
@@ -125,7 +127,8 @@ send `Authorization: Bearer <token>`. Interactive docs at **`/docs`** (spec: `/o
 
 ### Authorization
 
-- Menu/category **mutations** (`POST`/`PUT`/`DELETE`) require the `MANAGER` role.
+- Menu/category **mutations** (`POST`/`PUT`/`DELETE`) require the `MANAGER` role; modifier group
+  and option routes are manager-only (public reads come through the item modifier endpoint).
 - Order routes are scoped: a cashier may only read/modify **their own** orders; managers may act
   on any order.
 - `/users` management endpoints require `MANAGER`.
@@ -144,7 +147,12 @@ send `Authorization: Bearer <token>`. Interactive docs at **`/docs`** (spec: `/o
 ### Order lifecycle
 
 `DRAFT → (add/modify items) → COMPLETED` (immutable) or `CANCELLED`. Totals are always recomputed
-from line items (`subtotal + tax`), so the stored header can never drift from the items.
+from line items and the ordered charge chain (`subtotal + charges`; `tax_amount` is the sum of
+tax-flagged charges), so the stored header can never drift from the items. Charges may be
+negative (discounts), but the total cannot fall below zero. Settled bills are
+append-only: voids, refunds and amendments add records instead of rewriting `total_amount`.
+Line options and notes are snapshotted on the bill at order time, and a line's identity is
+`menuItemId + sorted option ids + note`.
 
 ### Table lifecycle
 
@@ -162,7 +170,9 @@ also frees its table automatically, so the floor never keeps a finished bill on 
 | Menu categories + items (CRUD, search/filter, soft delete) | done |
 | Orders (draft, items, complete, cancel, totals, immutability) | done |
 | Payment methods (seeded catalogue, active-set validation, optional reference) | done |
-| Charges (templates copied per order, ordered evaluation, persisted subtotal) | done |
+| Charges (templates copied per order, ordered evaluation, ad-hoc charges/discounts, persisted subtotal) | done |
+| Money storage (scaled `BIGINT` minor units via converters, exact on SQLite + Postgres) | done |
+| Menu item modifiers (groups/options, per-unit pricing, line notes, snapshots) | done |
 | Voids, append-only refunds, amend-with-lineage | done |
 | Reconciliation report + bill-level CSV export | done |
 | Tables (floor plan, occupancy, open/assign/release, join/unjoin) | done |
@@ -170,6 +180,6 @@ also frees its table automatically, so the floor never keeps a finished bill on 
 | Error handling, validation, response envelope, pagination | done |
 | Logging (console/file/Kafka, correlation IDs, audit) | done |
 | OpenAPI spec + Swagger UI | done |
-| Tests (unit + integration) | done (89 tests; no HTTP-controller/coverage gate) |
+| Tests (unit + integration) | done (124 tests; no HTTP-controller/coverage gate) |
 | CI (build + test + package) | done — `website-backend/.github/workflows/pos-ci.yml` |
 | Redis caching, email, inventory, loyalty, reporting, metrics | not started (optional phase 13) |
